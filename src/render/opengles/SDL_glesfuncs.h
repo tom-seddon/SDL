@@ -59,5 +59,11 @@ SDL_PROC(void, glTranslatef, (GLfloat, GLfloat, GLfloat))
 SDL_PROC(void, glRotatef, (GLfloat, GLfloat, GLfloat, GLfloat))
 SDL_PROC(void, glPopMatrix, (void))
 SDL_PROC_OES(void, glDeleteFramebuffersOES, (GLsizei, const GLuint*))
+SDL_PROC(void, glColorPointer,
+                (GLint size, GLenum type, GLsizei stride,
+                 const GLvoid * pointer))
+SDL_PROC(void, glDrawElements,
+                (GLenum mode, GLsizei count, GLenum type,
+                 const GLvoid * indices))
 
 /* vi: set ts=4 sw=4 expandtab: */

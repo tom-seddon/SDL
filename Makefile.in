@@ -111,6 +111,7 @@ HDRS = \
 	SDL_touch.h \
 	SDL_types.h \
 	SDL_version.h \
+	SDL_vertex.h \
 	SDL_video.h \
 	begin_code.h \
 	close_code.h

@@ -38,6 +38,7 @@ static const Uint8 GLES2_VertexSrc_Default_[] = " \
     attribute float a_angle; \
     attribute vec2 a_center; \
     varying vec2 v_texCoord; \
+    varying vec4 v_color; \
     \
     void main() \
     { \
@@ -47,18 +48,40 @@ static const Uint8 GLES2_VertexSrc_Default_[] = " \
         mat2 rotationMatrix = mat2(c, -s, s, c); \
         vec2 position = rotationMatrix * (a_position - a_center) + a_center; \
         v_texCoord = a_texCoord; \
+        v_color = vec4(1.0, 1.0, 1.0, 1.0);\
         gl_Position = u_projection * vec4(position, 0.0, 1.0);\
         gl_PointSize = 1.0; \
     } \
 ";
 
+static const Uint8 GLES2_VertexSrc_Geometry_[] = " \
+    attribute vec2 a_position; \
+    attribute vec2 a_texCoord; \
+    attribute vec4 a_color; \
+    varying vec2 v_texCoord; \
+    varying vec4 v_color; \
+    varying vec2 v_position; \
+    uniform mat4 u_projection; \
+    uniform vec2 u_translation; \
+\
+    void main() \
+    { \
+        v_position = a_position + u_translation; \
+        gl_Position = u_projection * vec4(v_position, 0.0, 1.0); \
+        v_texCoord = a_texCoord; \
+        v_color = a_color; \
+    }\
+";
+
+
 static const Uint8 GLES2_FragmentSrc_SolidSrc_[] = " \
     precision mediump float; \
     uniform vec4 u_color; \
+    varying vec4 v_color; \
     \
     void main() \
     { \
-        gl_FragColor = u_color; \
+        gl_FragColor = u_color * v_color; \
     } \
 ";
 
@@ -67,10 +90,11 @@ static const Uint8 GLES2_FragmentSrc_TextureABGRSrc_[] = " \
     uniform sampler2D u_texture; \
     uniform vec4 u_modulation; \
     varying vec2 v_texCoord; \
+    varying vec4 v_color; \
     \
     void main() \
     { \
-        gl_FragColor = texture2D(u_texture, v_texCoord); \
+        gl_FragColor = texture2D(u_texture, v_texCoord) * v_color; \
         gl_FragColor *= u_modulation; \
     } \
 ";
@@ -81,10 +105,11 @@ static const Uint8 GLES2_FragmentSrc_TextureARGBSrc_[] = " \
     uniform sampler2D u_texture; \
     uniform vec4 u_modulation; \
     varying vec2 v_texCoord; \
+    varying vec4 v_color; \
     \
     void main() \
     { \
-        vec4 abgr = texture2D(u_texture, v_texCoord); \
+        vec4 abgr = texture2D(u_texture, v_texCoord) * v_color; \
         gl_FragColor = abgr; \
         gl_FragColor.r = abgr.b; \
         gl_FragColor.b = abgr.r; \
@@ -98,10 +123,11 @@ static const Uint8 GLES2_FragmentSrc_TextureRGBSrc_[] = " \
     uniform sampler2D u_texture; \
     uniform vec4 u_modulation; \
     varying vec2 v_texCoord; \
+    varying vec4 v_color; \
     \
     void main() \
     { \
-        vec4 abgr = texture2D(u_texture, v_texCoord); \
+        vec4 abgr = texture2D(u_texture, v_texCoord) * v_color; \
         gl_FragColor = abgr; \
         gl_FragColor.r = abgr.b; \
         gl_FragColor.b = abgr.r; \
@@ -116,10 +142,11 @@ static const Uint8 GLES2_FragmentSrc_TextureBGRSrc_[] = " \
     uniform sampler2D u_texture; \
     uniform vec4 u_modulation; \
     varying vec2 v_texCoord; \
+    varying vec4 v_color; \
     \
     void main() \
     { \
-        vec4 abgr = texture2D(u_texture, v_texCoord); \
+        vec4 abgr = texture2D(u_texture, v_texCoord) * v_color; \
         gl_FragColor = abgr; \
         gl_FragColor.a = 1.0; \
         gl_FragColor *= u_modulation; \
@@ -201,6 +228,13 @@ static const GLES2_ShaderInstance GLES2_VertexSrc_Default = {
     GLES2_VertexSrc_Default_
 };
 
+static const GLES2_ShaderInstance GLES2_VertexSrc_Geometry = {
+    GL_VERTEX_SHADER,
+    GLES2_SOURCE_SHADER,
+    sizeof(GLES2_VertexSrc_Geometry_),
+    GLES2_VertexSrc_Geometry_
+};
+
 static const GLES2_ShaderInstance GLES2_FragmentSrc_SolidSrc = {
     GL_FRAGMENT_SHADER,
     GLES2_SOURCE_SHADER,
@@ -256,6 +290,7 @@ static const GLES2_ShaderInstance GLES2_FragmentSrc_TextureNV21Src = {
     sizeof(GLES2_FragmentSrc_TextureNV21Src_),
     GLES2_FragmentSrc_TextureNV21Src_
 };
+
 
 
 /*************************************************************************************************
@@ -586,6 +621,13 @@ static GLES2_Shader GLES2_VertexShader_Default = {
     }
 };
 
+static GLES2_Shader GLES2_VertexShader_Geometry = {
+    1,
+    {
+        &GLES2_VertexSrc_Geometry
+    }
+};
+
 static GLES2_Shader GLES2_FragmentShader_None_SolidSrc = {
 #if GLES2_INCLUDE_NVIDIA_SHADERS
     2,
@@ -813,6 +855,8 @@ const GLES2_Shader *GLES2_GetShader(GLES2_ShaderType type, SDL_BlendMode blendMo
     switch (type) {
     case GLES2_SHADER_VERTEX_DEFAULT:
         return &GLES2_VertexShader_Default;
+    case GLES2_SHADER_VERTEX_GEOMETRY:
+            return &GLES2_VertexShader_Geometry;
     case GLES2_SHADER_FRAGMENT_SOLID_SRC:
     switch (blendMode) {
     case SDL_BLENDMODE_NONE:

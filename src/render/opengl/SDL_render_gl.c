@@ -89,6 +89,10 @@ static void GL_DestroyTexture(SDL_Renderer * renderer, SDL_Texture * texture);
 static void GL_DestroyRenderer(SDL_Renderer * renderer);
 static int GL_BindTexture (SDL_Renderer * renderer, SDL_Texture *texture, float *texw, float *texh);
 static int GL_UnbindTexture (SDL_Renderer * renderer, SDL_Texture *texture);
+static int GL_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex *vertices, int num_vertices, int* indices, int num_indices, const SDL_Vector2f *translation);
+static int GL_EnableScissor(SDL_Renderer * renderer);
+static int GL_DisableScissor(SDL_Renderer * renderer);
+static int GL_ScissorRegion(SDL_Renderer * renderer, const SDL_Rect *region);
 
 SDL_RenderDriver GL_RenderDriver = {
     GL_CreateRenderer,
@@ -150,6 +154,7 @@ typedef struct
 
     /* Shader support */
     GL_ShaderContext *shaders;
+    SDL_bool GL_shaders_textureSize_supported;
 
 } GL_RenderData;
 
@@ -392,6 +397,7 @@ GL_CreateRenderer(SDL_Window * window, Uint32 flags)
     GL_RenderData *data;
     GLint value;
     Uint32 window_flags;
+    const char *shading_language_version;
     int profile_mask = 0, major = 0, minor = 0;
     SDL_bool changed_window = SDL_FALSE;
 
@@ -448,6 +454,10 @@ GL_CreateRenderer(SDL_Window * window, Uint32 flags)
     renderer->DestroyRenderer = GL_DestroyRenderer;
     renderer->GL_BindTexture = GL_BindTexture;
     renderer->GL_UnbindTexture = GL_UnbindTexture;
+    renderer->RenderGeometry = GL_RenderGeometry;
+    renderer->EnableScissor = GL_EnableScissor;
+    renderer->DisableScissor = GL_DisableScissor;
+    renderer->ScissorRegion = GL_ScissorRegion;
     renderer->info = GL_RenderDriver.info;
     renderer->info.flags = SDL_RENDERER_ACCELERATED;
     renderer->driverdata = data;
@@ -515,6 +525,21 @@ GL_CreateRenderer(SDL_Window * window, Uint32 flags)
         data->glGetIntegerv(GL_MAX_TEXTURE_SIZE, &value);
         renderer->info.max_texture_width = value;
         renderer->info.max_texture_height = value;
+    }
+
+    data->GL_shaders_textureSize_supported = SDL_FALSE;
+    if (SDL_GL_ExtensionSupported("GL_ARB_shading_language_100")) {
+        shading_language_version = data->glGetString(GL_SHADING_LANGUAGE_VERSION);
+        if (data->glGetError() == GL_NO_ERROR) {
+            /* If there's an error it means shading language v1.00 aka v1.051 */
+            /* We are looking for v1.30 or higher */
+            if (! (shading_language_version[0] == '1' && shading_language_version[1] == '.' && (
+               shading_language_version[2]=='0' || shading_language_version[2]=='1' || shading_language_version[2]=='2'
+               ))) {
+               data->GL_shaders_textureSize_supported = SDL_TRUE;
+               }
+
+        }
     }
 
     /* Check for multitexture support */
@@ -1593,6 +1618,123 @@ GL_UnbindTexture (SDL_Renderer * renderer, SDL_Texture *texture)
     data->glDisable(texturedata->type);
 
     return 0;
+}
+
+static int GL_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex *vertices, int num_vertices, int* indices, int num_indices, const SDL_Vector2f *translation) {
+    int i;
+    GL_RenderData *data = (GL_RenderData *) renderer->driverdata;
+    GL_TextureData *texturedata = NULL;
+
+    if (texture) {
+        texturedata = (GL_TextureData *) texture->driverdata;
+    }
+    
+    GL_ActivateRenderer(renderer);
+
+    data->glPushMatrix();
+    if(translation) {
+        data->glTranslatef(translation->x, translation->y, 0);
+    }
+
+    if (texture) {
+        data->glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+        data->glEnable(texturedata->type);
+        if (texturedata->yuv) {
+            data->glActiveTextureARB(GL_TEXTURE2_ARB);
+            data->glBindTexture(texturedata->type, texturedata->vtexture);
+
+            data->glActiveTextureARB(GL_TEXTURE1_ARB);
+            data->glBindTexture(texturedata->type, texturedata->utexture);
+
+            data->glActiveTextureARB(GL_TEXTURE0_ARB);
+            if (texturedata->type == GL_TEXTURE_RECTANGLE_ARB && data->GL_shaders_textureSize_supported) {
+                GL_SetShader(data, SHADER_YV12_AUTOSCALE);
+            }
+            else {
+                GL_SetShader(data, SHADER_YUV);
+            }
+        }
+        else {
+            if (texturedata->type == GL_TEXTURE_RECTANGLE_ARB && data->GL_shaders_textureSize_supported) {
+                GL_SetShader(data, SHADER_RGB_AUTOSCALE);
+            }
+            else {
+                GL_SetShader(data, SHADER_RGB);
+            }
+        }
+
+        data->glBindTexture(texturedata->type, texturedata->texture);
+
+        if (texturedata->type == GL_TEXTURE_RECTANGLE_ARB && !data->GL_shaders_textureSize_supported ) {
+            for(i = 0; i < num_vertices; i++)
+            {
+                /* GL_TEXTURE_RECTANGLE_ARB texture coordinates go from 0 to texture width/height */
+                vertices[i].tex_coord.x *= texturedata->texw;
+                vertices[i].tex_coord.y *= texturedata->texh;
+            };
+        }
+        GL_SetBlendMode(data, texture->blendMode);
+	}
+	else {
+	    GL_SetShader(data, SHADER_SOLID);
+	    GL_SetBlendMode(data, SDL_BLENDMODE_BLEND);
+	}
+
+	data->glEnableClientState(GL_VERTEX_ARRAY);
+	data->glEnableClientState(GL_COLOR_ARRAY);
+	data->glVertexPointer(2, GL_FLOAT, sizeof(SDL_Vertex), &vertices[0].position);
+	data->glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(SDL_Vertex), &vertices[0].color);
+	data->glTexCoordPointer(2, GL_FLOAT, sizeof(SDL_Vertex), &vertices[0].tex_coord);
+
+	if (indices) {
+	    data->glDrawElements(GL_TRIANGLES, num_indices, GL_UNSIGNED_INT, indices);
+	}
+	else {
+	    data->glDrawArrays(GL_TRIANGLES, 0, num_vertices);
+	}
+	data->glDisableClientState(GL_VERTEX_ARRAY);
+	data->glDisableClientState(GL_COLOR_ARRAY);
+
+	if(texture) {
+        if (texturedata->type == GL_TEXTURE_RECTANGLE_ARB && !data->GL_shaders_textureSize_supported ) {
+            /* Unscale values in case the user wants to re submit them
+            TODO: As this is not an exact procedure, evaluate the merits of allocating extra memory and copying values
+                  instead, trying to avoid excessive fragmentation.
+            */
+            for(i = 0; i < num_vertices; i++)
+            {
+                /* GL_TEXTURE_RECTANGLE_ARB texture coordinates go from 0 to texture width/height */
+                vertices[i].tex_coord.x /= texturedata->texw;
+                vertices[i].tex_coord.y /= texturedata->texh;
+            };
+        }
+    }
+
+    data->glPopMatrix();
+
+	return 0;
+}
+
+
+static int GL_EnableScissor(SDL_Renderer * renderer) {
+    GL_RenderData *data = (GL_RenderData *) renderer->driverdata;
+    data->glEnable(GL_SCISSOR_TEST);
+    return 0;
+}
+
+static int GL_DisableScissor(SDL_Renderer * renderer) {
+    GL_RenderData *data = (GL_RenderData *) renderer->driverdata;
+    data->glDisable(GL_SCISSOR_TEST);
+    return 0;
+}
+
+static int GL_ScissorRegion(SDL_Renderer * renderer, const SDL_Rect *region)
+{
+    GL_RenderData *data = (GL_RenderData *) renderer->driverdata;
+	int w_width, w_height;
+	SDL_GetWindowSize(renderer->window, &w_width, &w_height);
+	data->glScissor(region->x, w_height - (region->y + region->h), region->w, region->h);
+	return 0;
 }
 
 #endif /* SDL_VIDEO_RENDER_OGL && !SDL_RENDER_DISABLED */

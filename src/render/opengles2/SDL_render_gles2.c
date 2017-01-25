@@ -146,6 +146,7 @@ typedef enum
     GLES2_ATTRIBUTE_TEXCOORD = 1,
     GLES2_ATTRIBUTE_ANGLE = 2,
     GLES2_ATTRIBUTE_CENTER = 3,
+    GLES2_ATTRIBUTE_COLOR = 4,
 } GLES2_Attribute;
 
 typedef enum
@@ -155,7 +156,8 @@ typedef enum
     GLES2_UNIFORM_MODULATION,
     GLES2_UNIFORM_COLOR,
     GLES2_UNIFORM_TEXTURE_U,
-    GLES2_UNIFORM_TEXTURE_V
+    GLES2_UNIFORM_TEXTURE_V,
+    GLES2_UNIFORM_TRANSLATION,
 } GLES2_Uniform;
 
 typedef enum
@@ -890,7 +892,7 @@ static GLES2_ProgramCacheEntry *GLES2_CacheProgram(SDL_Renderer *renderer,
                                                    GLES2_ShaderCacheEntry *fragment,
                                                    SDL_BlendMode blendMode);
 static int GLES2_SelectProgram(SDL_Renderer *renderer, GLES2_ImageSource source,
-                               SDL_BlendMode blendMode);
+                               SDL_BlendMode blendMode,  GLES2_ShaderType vtype);
 
 static GLES2_ProgramCacheEntry *
 GLES2_CacheProgram(SDL_Renderer *renderer, GLES2_ShaderCacheEntry *vertex,
@@ -943,6 +945,7 @@ GLES2_CacheProgram(SDL_Renderer *renderer, GLES2_ShaderCacheEntry *vertex,
     data->glBindAttribLocation(entry->id, GLES2_ATTRIBUTE_TEXCOORD, "a_texCoord");
     data->glBindAttribLocation(entry->id, GLES2_ATTRIBUTE_ANGLE, "a_angle");
     data->glBindAttribLocation(entry->id, GLES2_ATTRIBUTE_CENTER, "a_center");
+    data->glBindAttribLocation(entry->id, GLES2_ATTRIBUTE_COLOR, "a_color");
     data->glLinkProgram(entry->id);
     data->glGetProgramiv(entry->id, GL_LINK_STATUS, &linkSuccessful);
     if (!linkSuccessful) {
@@ -965,6 +968,8 @@ GLES2_CacheProgram(SDL_Renderer *renderer, GLES2_ShaderCacheEntry *vertex,
         data->glGetUniformLocation(entry->id, "u_modulation");
     entry->uniform_locations[GLES2_UNIFORM_COLOR] =
         data->glGetUniformLocation(entry->id, "u_color");
+    entry->uniform_locations[GLES2_UNIFORM_TRANSLATION] =
+        data->glGetUniformLocation(entry->id, "u_translation");
 
     entry->modulation_r = entry->modulation_g = entry->modulation_b = entry->modulation_a = 255;
     entry->color_r = entry->color_g = entry->color_b = entry->color_a = 255;
@@ -976,6 +981,7 @@ GLES2_CacheProgram(SDL_Renderer *renderer, GLES2_ShaderCacheEntry *vertex,
     data->glUniformMatrix4fv(entry->uniform_locations[GLES2_UNIFORM_PROJECTION], 1, GL_FALSE, (GLfloat *)entry->projection);
     data->glUniform4f(entry->uniform_locations[GLES2_UNIFORM_MODULATION], 1.0f, 1.0f, 1.0f, 1.0f);
     data->glUniform4f(entry->uniform_locations[GLES2_UNIFORM_COLOR], 1.0f, 1.0f, 1.0f, 1.0f);
+    data->glUniform2f(entry->uniform_locations[GLES2_UNIFORM_TRANSLATION], 0.0, 0.0);
 
     /* Cache the linked program */
     if (data->program_cache.head) {
@@ -1130,16 +1136,15 @@ GLES2_EvictShader(SDL_Renderer *renderer, GLES2_ShaderCacheEntry *entry)
 }
 
 static int
-GLES2_SelectProgram(SDL_Renderer *renderer, GLES2_ImageSource source, SDL_BlendMode blendMode)
+GLES2_SelectProgram(SDL_Renderer *renderer, GLES2_ImageSource source, SDL_BlendMode blendMode, GLES2_ShaderType vtype)
 {
     GLES2_DriverContext *data = (GLES2_DriverContext *)renderer->driverdata;
     GLES2_ShaderCacheEntry *vertex = NULL;
     GLES2_ShaderCacheEntry *fragment = NULL;
-    GLES2_ShaderType vtype, ftype;
+    GLES2_ShaderType ftype;
     GLES2_ProgramCacheEntry *program;
 
     /* Select an appropriate shader pair for the specified modes */
-    vtype = GLES2_SHADER_VERTEX_DEFAULT;
     switch (source) {
     case GLES2_IMAGESOURCE_SOLID:
         ftype = GLES2_SHADER_FRAGMENT_SOLID_SRC;
@@ -1394,7 +1399,7 @@ GLES2_SetDrawingState(SDL_Renderer * renderer)
     GLES2_SetTexCoords(data, SDL_FALSE);
 
     /* Activate an appropriate shader and set the projection matrix */
-    if (GLES2_SelectProgram(renderer, GLES2_IMAGESOURCE_SOLID, blendMode) < 0) {
+    if (GLES2_SelectProgram(renderer, GLES2_IMAGESOURCE_SOLID, blendMode, GLES2_SHADER_VERTEX_DEFAULT) < 0 ) {
         return -1;
     }
 
@@ -1658,7 +1663,7 @@ GLES2_SetupCopy(SDL_Renderer *renderer, SDL_Texture *texture)
         }
     }
 
-    if (GLES2_SelectProgram(renderer, sourceType, blendMode) < 0) {
+    if (GLES2_SelectProgram(renderer, sourceType, blendMode, GLES2_SHADER_VERTEX_DEFAULT) < 0 ) {
         return -1;
     }
 
@@ -1920,6 +1925,205 @@ static int GLES2_UnbindTexture (SDL_Renderer * renderer, SDL_Texture *texture)
 
 
 /*************************************************************************************************
+ * Geometry rendering
+ *************************************************************************************************/
+static void GLES2_ResetState(SDL_Renderer *renderer);
+static int GLES2_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex *vertices, int num_vertices, int* indices, int num_indices, const SDL_Vector2f *translation);
+static int GLES2_EnableScissor(SDL_Renderer * renderer);
+static int GLES2_DisableScissor(SDL_Renderer * renderer);
+static int GLES2_ScissorRegion(SDL_Renderer * renderer, const SDL_Rect *region);
+
+#define MAX_SHORT_INDICES 1024
+
+static int GLES2_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex *vertices, int num_vertices, int* indices, int num_indices, const SDL_Vector2f *translation)
+{
+    int i, base;
+    GLES2_DriverContext *data = (GLES2_DriverContext *)renderer->driverdata;
+    GLES2_TextureData *texturedata = NULL;
+    GLES2_ImageSource sourceType;
+    static unsigned short indices_[MAX_SHORT_INDICES];
+
+    if (texture) {
+        texturedata = (GLES2_TextureData *) texture->driverdata;
+    }
+
+    GLES2_ActivateRenderer(renderer);
+
+    if(texture) {
+        if (renderer->target) {
+            /* Check if we need to do color mapping between the source and render target textures */
+            if (renderer->target->format != texture->format) {
+                switch (texture->format)
+                {
+                case SDL_PIXELFORMAT_ABGR8888:
+                    switch (renderer->target->format)
+                    {
+                        case SDL_PIXELFORMAT_ARGB8888:
+                        case SDL_PIXELFORMAT_RGB888:
+                            sourceType = GLES2_IMAGESOURCE_TEXTURE_ARGB;
+                            break;
+                        case SDL_PIXELFORMAT_BGR888:
+                            sourceType = GLES2_IMAGESOURCE_TEXTURE_ABGR;
+                            break;
+                    }
+                    break;
+                case SDL_PIXELFORMAT_ARGB8888:
+                    switch (renderer->target->format)
+                    {
+                        case SDL_PIXELFORMAT_ABGR8888:
+                        case SDL_PIXELFORMAT_BGR888:
+                            sourceType = GLES2_IMAGESOURCE_TEXTURE_ARGB;
+                            break;
+                        case SDL_PIXELFORMAT_RGB888:
+                            sourceType = GLES2_IMAGESOURCE_TEXTURE_ABGR;
+                            break;
+                    }
+                    break;
+                case SDL_PIXELFORMAT_BGR888:
+                    switch (renderer->target->format)
+                    {
+                        case SDL_PIXELFORMAT_ABGR8888:
+                            sourceType = GLES2_IMAGESOURCE_TEXTURE_BGR;
+                            break;
+                        case SDL_PIXELFORMAT_ARGB8888:
+                            sourceType = GLES2_IMAGESOURCE_TEXTURE_RGB;
+                            break;
+                        case SDL_PIXELFORMAT_RGB888:
+                            sourceType = GLES2_IMAGESOURCE_TEXTURE_ARGB;
+                            break;
+                    }
+                    break;
+                case SDL_PIXELFORMAT_RGB888:
+                    switch (renderer->target->format)
+                    {
+                        case SDL_PIXELFORMAT_ABGR8888:
+                            sourceType = GLES2_IMAGESOURCE_TEXTURE_ARGB;
+                            break;
+                        case SDL_PIXELFORMAT_ARGB8888:
+                            sourceType = GLES2_IMAGESOURCE_TEXTURE_BGR;
+                            break;
+                        case SDL_PIXELFORMAT_BGR888:
+                            sourceType = GLES2_IMAGESOURCE_TEXTURE_ARGB;
+                            break;
+                    }
+                    break;
+                }
+            }
+            else sourceType = GLES2_IMAGESOURCE_TEXTURE_ABGR;   // Texture formats match, use the non color mapping shader (even if the formats are not ABGR)
+        }
+        else {
+            switch (texture->format)
+            {
+                case SDL_PIXELFORMAT_ABGR8888:
+                    sourceType = GLES2_IMAGESOURCE_TEXTURE_ABGR;
+                    break;
+                case SDL_PIXELFORMAT_ARGB8888:
+                    sourceType = GLES2_IMAGESOURCE_TEXTURE_ARGB;
+                    break;
+                case SDL_PIXELFORMAT_BGR888:
+                    sourceType = GLES2_IMAGESOURCE_TEXTURE_BGR;
+                    break;
+                case SDL_PIXELFORMAT_RGB888:
+                    sourceType = GLES2_IMAGESOURCE_TEXTURE_RGB;
+                    break;
+            }
+        }
+        if (GLES2_SelectProgram(renderer, sourceType, texture->blendMode, GLES2_SHADER_VERTEX_GEOMETRY) < 0 )
+            return -1;
+    }
+    else {
+        GLES2_SelectProgram(renderer, GLES2_IMAGESOURCE_SOLID, SDL_BLENDMODE_BLEND, GLES2_SHADER_VERTEX_GEOMETRY);
+    }
+
+
+    if (texture) {
+        GLES2_SetBlendMode(data, texture->blendMode);
+    }
+    else {
+        GLES2_SetBlendMode(data, SDL_BLENDMODE_BLEND);
+    }
+
+    data->glVertexAttribPointer(GLES2_ATTRIBUTE_POSITION, 2, GL_FLOAT, GL_FALSE, sizeof(SDL_Vertex), &vertices[0].position);
+    data->glVertexAttribPointer(GLES2_ATTRIBUTE_COLOR, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(SDL_Vertex), &vertices[0].colour);
+    data->glEnableVertexAttribArray(GLES2_ATTRIBUTE_POSITION);
+    data->glEnableVertexAttribArray(GLES2_ATTRIBUTE_TEXCOORD);
+    data->glEnableVertexAttribArray(GLES2_ATTRIBUTE_COLOR);
+
+    if(texture) {
+        data->glActiveTexture(GL_TEXTURE0);
+        data->glBindTexture(texturedata->texture_type, texturedata->texture);
+        data->glUniform1i(data->current_program->uniform_locations[GLES2_UNIFORM_TEXTURE], 0);
+        data->glVertexAttribPointer(GLES2_ATTRIBUTE_TEXCOORD, 2, GL_FLOAT, GL_FALSE, sizeof(SDL_Vertex), &vertices[0].tex_coord);
+    }
+    else {
+        data->glActiveTexture(GL_TEXTURE0);
+        data->glDisable(GL_TEXTURE_2D);
+        data->glDisableVertexAttribArray(GLES2_ATTRIBUTE_TEXCOORD);
+    }
+
+    if (translation) {
+        data->glUniform2f(data->current_program->uniform_locations[GLES2_UNIFORM_TRANSLATION], translation->x, translation->y);
+    }
+    else {
+        data->glUniform2f(data->current_program->uniform_locations[GLES2_UNIFORM_TRANSLATION], 0.0, 0.0);
+    }
+
+    data->glUniform4f(data->current_program->uniform_locations[GLES2_UNIFORM_COLOR], 1.0, 1.0, 1.0, 1.0);
+    data->glUniform4f(data->current_program->uniform_locations[GLES2_UNIFORM_MODULATION], 1.0, 1.0, 1.0, 1.0);
+
+    if (indices) {
+        /* int indices need to be converted to short */
+        base = 0;
+        for ( i = 0; base + i < num_indices; i++)
+        {
+            if (i == MAX_SHORT_INDICES) {
+                base += MAX_SHORT_INDICES;
+                i = 0;
+                data->glDrawElements(GL_TRIANGLES, MAX_SHORT_INDICES, GL_UNSIGNED_SHORT, indices_);
+            }
+            indices_[i] = (unsigned short) indices[i+base];
+        }
+
+        if (i) {
+            data->glDrawElements(GL_TRIANGLES, i, GL_UNSIGNED_SHORT, indices_);
+        }
+    }
+    else {
+        data->glDrawArrays(GL_TRIANGLES, 0, num_vertices);
+    }
+
+    data->glDisableVertexAttribArray(GLES2_ATTRIBUTE_COLOR);
+
+	return 0;
+}
+
+
+static int GLES2_EnableScissor(SDL_Renderer * renderer)
+{
+    GLES2_DriverContext *data = (GLES2_DriverContext *) renderer->driverdata;
+    data->glEnable(GL_SCISSOR_TEST);
+    return 0;
+}
+
+static int GLES2_DisableScissor(SDL_Renderer * renderer)
+{
+    GLES2_DriverContext *data = (GLES2_DriverContext *)renderer->driverdata;
+    data->glDisable(GL_SCISSOR_TEST);
+    return 0;
+}
+
+static int GLES2_ScissorRegion(SDL_Renderer * renderer, const SDL_Rect *region)
+{
+    GLES2_DriverContext *data = (GLES2_DriverContext *)renderer->driverdata;
+	int w_width, w_height;
+	SDL_GetWindowSize(renderer->window, &w_width, &w_height);
+	data->glScissor(region->x, w_height - (region->y + region->h), region->w, region->h);
+	return 0;
+}
+
+
+
+/*************************************************************************************************
  * Renderer instantiation                                                                        *
  *************************************************************************************************/
 
@@ -2113,6 +2317,10 @@ GLES2_CreateRenderer(SDL_Window *window, Uint32 flags)
     renderer->DestroyRenderer     = &GLES2_DestroyRenderer;
     renderer->GL_BindTexture      = &GLES2_BindTexture;
     renderer->GL_UnbindTexture    = &GLES2_UnbindTexture;
+    renderer->RenderGeometry      = &GLES2_RenderGeometry;
+    renderer->EnableScissor       = &GLES2_EnableScissor;
+    renderer->DisableScissor      = &GLES2_DisableScissor;
+    renderer->ScissorRegion       = &GLES2_ScissorRegion;
 
     renderer->info.texture_formats[renderer->info.num_texture_formats++] = SDL_PIXELFORMAT_YV12;
     renderer->info.texture_formats[renderer->info.num_texture_formats++] = SDL_PIXELFORMAT_IYUV;

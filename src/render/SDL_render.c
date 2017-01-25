@@ -1984,4 +1984,64 @@ int SDL_GL_UnbindTexture(SDL_Texture *texture)
     return SDL_Unsupported();
 }
 
+
+int SDL_RenderGeometry(SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex *vertices, int num_vertices, int* indices, int num_indices, const SDL_Vector2f *translation)
+{
+    CHECK_RENDERER_MAGIC(renderer, -1);
+
+    if (texture) {
+        CHECK_TEXTURE_MAGIC(texture, -1);
+
+        if (renderer != texture->renderer) {
+            SDL_SetError("Texture was not created with this renderer");
+            return -1;
+        }
+    }
+
+    if (!renderer->RenderGeometry) {
+        SDL_SetError("Renderer does not support RenderGeometry");
+        return -1;
+    }
+
+    if(!vertices) {
+        SDL_SetError("Vertices parameter can not be null");
+        return -1;
+    }
+
+    return renderer->RenderGeometry(renderer, texture, vertices, num_vertices, indices, num_indices, translation);
+}
+
+int SDL_EnableScissor (SDL_Renderer * renderer)
+{
+    if(renderer && renderer->EnableScissor) {
+        renderer->EnableScissor(renderer);
+    }
+
+    SDL_Unsupported();
+    return -1;
+}
+
+int SDL_DisableScissor (SDL_Renderer * renderer)
+{
+    if(renderer && renderer->DisableScissor) {
+        renderer->DisableScissor(renderer);
+    }
+
+    SDL_Unsupported();
+    return -1;
+}
+
+int SDL_ScissorRegion(SDL_Renderer * renderer, const SDL_Rect *region)
+{
+    if(renderer && renderer->ScissorRegion) {
+        if (region) {
+            return renderer->ScissorRegion(renderer, region);
+        }
+        return -1;
+    }
+
+    SDL_Unsupported();
+    return -1;
+}
+
 /* vi: set ts=4 sw=4 expandtab: */

@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2017 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2013 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -18,26 +18,54 @@
      misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
-#include "../../SDL_internal.h"
 
-/* OpenGL shader implementation */
+/**
+ *  \file SDL_vertex.h
+ *  
+ *  Header file for SDL_vertex definition and management functions.
+ */
 
-typedef enum {
-    SHADER_NONE,
-    SHADER_SOLID,
-    SHADER_RGB,
-    SHADER_YUV,
-    SHADER_NV12,
-    SHADER_NV21,
-    SHADER_RGB_AUTOSCALE,
-    SHADER_YV12_AUTOSCALE,
-    NUM_SHADERS
-} GL_Shader;
+#ifndef _SDL_vertex_h
+#define _SDL_vertex_h
 
-typedef struct GL_ShaderContext GL_ShaderContext;
+#include "SDL_pixels.h"
 
-extern GL_ShaderContext * GL_CreateShaderContext(void);
-extern void GL_SelectShader(GL_ShaderContext *ctx, GL_Shader shader);
-extern void GL_DestroyShaderContext(GL_ShaderContext *ctx);
+#include "begin_code.h"
+/* Set up for C function definitions, even when using C++ */
+#ifdef __cplusplus
+/* *INDENT-OFF* */
+extern "C" {
+/* *INDENT-ON* */
+#endif
+
+typedef struct
+{
+    float x;
+    float y;
+} SDL_Vector2f;
+
+/**
+ *  \brief  The structure that defines a vertex
+ *
+ */
+typedef struct
+{
+    SDL_Vector2f position;
+    union {
+        SDL_Color color;
+        SDL_Color colour;
+    };
+    SDL_Vector2f tex_coord;
+} SDL_Vertex;
+
+/* Ends C function definitions when using C++ */
+#ifdef __cplusplus
+/* *INDENT-OFF* */
+}
+/* *INDENT-ON* */
+#endif
+#include "close_code.h"
+
+#endif /* _SDL_vertex_h */
 
 /* vi: set ts=4 sw=4 expandtab: */
