@@ -51,10 +51,7 @@ typedef struct
 typedef struct
 {
     SDL_Vector2f position;
-    union {
-        SDL_Color color;
-        SDL_Color colour;
-    };
+    SDL_Color color;
     SDL_Vector2f tex_coord;
 } SDL_Vertex;
 

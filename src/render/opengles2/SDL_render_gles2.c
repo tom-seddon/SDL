@@ -2044,7 +2044,7 @@ static int GLES2_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, 
     }
 
     data->glVertexAttribPointer(GLES2_ATTRIBUTE_POSITION, 2, GL_FLOAT, GL_FALSE, sizeof(SDL_Vertex), &vertices[0].position);
-    data->glVertexAttribPointer(GLES2_ATTRIBUTE_COLOR, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(SDL_Vertex), &vertices[0].colour);
+    data->glVertexAttribPointer(GLES2_ATTRIBUTE_COLOR, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(SDL_Vertex), &vertices[0].color);
     data->glEnableVertexAttribArray(GLES2_ATTRIBUTE_POSITION);
     data->glEnableVertexAttribArray(GLES2_ATTRIBUTE_TEXCOORD);
     data->glEnableVertexAttribArray(GLES2_ATTRIBUTE_COLOR);
