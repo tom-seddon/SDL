@@ -63,14 +63,6 @@ typedef struct
     Float4X4 projectionAndView;
 } VertexShaderConstants;
 
-/* Per-vertex data */
-typedef struct
-{
-    Float3 pos;
-    Float2 tex;
-    Float4 color;
-} VertexPositionColor;
-
 /* Per-texture data */
 typedef struct
 {
@@ -1020,9 +1012,9 @@ D3D11_CreateDeviceResources(SDL_Renderer * renderer)
     /* Declare how the input layout for SDL's vertex shader will be setup: */
     const D3D11_INPUT_ELEMENT_DESC vertexDesc[] = 
     {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 20, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(SDL_Vertex, position), D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(SDL_Vertex, tex_coord), D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "COLOR",    0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, offsetof(SDL_Vertex, color), D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
 
     D3D11_BUFFER_DESC constantBufferDesc;
@@ -2353,7 +2345,7 @@ D3D11_UpdateVertexBuffer(SDL_Renderer *renderer,
     D3D11_BUFFER_DESC vertexBufferDesc;
     HRESULT result = S_OK;
     D3D11_SUBRESOURCE_DATA vertexBufferData;
-    const UINT stride = sizeof(VertexPositionColor);
+    const UINT stride = sizeof(SDL_Vertex);
     const UINT offset = 0;
 
     if (rendererData->vertexBuffer) {
@@ -2507,24 +2499,24 @@ D3D11_RenderDrawPoints(SDL_Renderer * renderer,
                        const SDL_FPoint * points, int count)
 {
     D3D11_RenderData *rendererData = (D3D11_RenderData *) renderer->driverdata;
-    float r, g, b, a;
-    VertexPositionColor *vertices;
+    uint8_t r, g, b, a;
+    SDL_Vertex *vertices;
     int i;
 
-    r = (float)(renderer->r / 255.0f);
-    g = (float)(renderer->g / 255.0f);
-    b = (float)(renderer->b / 255.0f);
-    a = (float)(renderer->a / 255.0f);
+    r = renderer->r;
+    g = renderer->g;
+    b = renderer->b;
+    a = renderer->a;
 
-    vertices = SDL_stack_alloc(VertexPositionColor, count);
+    vertices = SDL_stack_alloc(SDL_Vertex, count);
     for (i = 0; i < count; ++i) {
-        const VertexPositionColor v = { { points[i].x + 0.5f, points[i].y + 0.5f, 0.0f }, { 0.0f, 0.0f }, { r, g, b, a } };
+        const SDL_Vertex v = { { points[i].x + 0.5f, points[i].y + 0.5f }, { r, g, b, a }, { 0.0f, 0.0f }, };
         vertices[i] = v;
     }
 
     D3D11_RenderStartDrawOp(renderer);
     D3D11_RenderSetBlendMode(renderer, renderer->blendMode);
-    if (D3D11_UpdateVertexBuffer(renderer, vertices, (unsigned int)count * sizeof(VertexPositionColor)) != 0) {
+    if (D3D11_UpdateVertexBuffer(renderer, vertices, (unsigned int)count * sizeof(SDL_Vertex)) != 0) {
         SDL_stack_free(vertices);
         return -1;
     }
@@ -2546,24 +2538,24 @@ D3D11_RenderDrawLines(SDL_Renderer * renderer,
                       const SDL_FPoint * points, int count)
 {
     D3D11_RenderData *rendererData = (D3D11_RenderData *) renderer->driverdata;
-    float r, g, b, a;
-    VertexPositionColor *vertices;
+    uint8_t r, g, b, a;
+    SDL_Vertex *vertices;
     int i;
 
-    r = (float)(renderer->r / 255.0f);
-    g = (float)(renderer->g / 255.0f);
-    b = (float)(renderer->b / 255.0f);
-    a = (float)(renderer->a / 255.0f);
+    r = renderer->r;
+    g = renderer->g;
+    b = renderer->b;
+    a = renderer->a;
 
-    vertices = SDL_stack_alloc(VertexPositionColor, count);
+    vertices = SDL_stack_alloc(SDL_Vertex, count);
     for (i = 0; i < count; ++i) {
-        const VertexPositionColor v = { { points[i].x + 0.5f, points[i].y + 0.5f, 0.0f }, { 0.0f, 0.0f }, { r, g, b, a } };
+        const SDL_Vertex v = { { points[i].x + 0.5f, points[i].y + 0.5f }, { r, g, b, a }, { 0.0f, 0.0f } };
         vertices[i] = v;
     }
 
     D3D11_RenderStartDrawOp(renderer);
     D3D11_RenderSetBlendMode(renderer, renderer->blendMode);
-    if (D3D11_UpdateVertexBuffer(renderer, vertices, (unsigned int)count * sizeof(VertexPositionColor)) != 0) {
+    if (D3D11_UpdateVertexBuffer(renderer, vertices, (unsigned int)count * sizeof(SDL_Vertex)) != 0) {
         SDL_stack_free(vertices);
         return -1;
     }
@@ -2591,20 +2583,20 @@ D3D11_RenderFillRects(SDL_Renderer * renderer,
                       const SDL_FRect * rects, int count)
 {
     D3D11_RenderData *rendererData = (D3D11_RenderData *) renderer->driverdata;
-    float r, g, b, a;
+    uint8_t r, g, b, a;
     int i;
 
-    r = (float)(renderer->r / 255.0f);
-    g = (float)(renderer->g / 255.0f);
-    b = (float)(renderer->b / 255.0f);
-    a = (float)(renderer->a / 255.0f);
+    r = renderer->r;
+    g = renderer->g;
+    b = renderer->b;
+    a = renderer->a;
 
     for (i = 0; i < count; ++i) {
-        VertexPositionColor vertices[] = {
-            { { rects[i].x, rects[i].y, 0.0f },                             { 0.0f, 0.0f}, {r, g, b, a} },
-            { { rects[i].x, rects[i].y + rects[i].h, 0.0f },                { 0.0f, 0.0f }, { r, g, b, a } },
-            { { rects[i].x + rects[i].w, rects[i].y, 0.0f },                { 0.0f, 0.0f }, { r, g, b, a } },
-            { { rects[i].x + rects[i].w, rects[i].y + rects[i].h, 0.0f },   { 0.0f, 0.0f }, { r, g, b, a } },
+        SDL_Vertex vertices[] = {
+            { { rects[i].x, rects[i].y },                           { r, g, b, a }, { 0.0f, 0.0f }, },
+            { { rects[i].x, rects[i].y + rects[i].h },              { r, g, b, a }, { 0.0f, 0.0f }, },
+            { { rects[i].x + rects[i].w, rects[i].y },              { r, g, b, a }, { 0.0f, 0.0f }, },
+            { { rects[i].x + rects[i].w, rects[i].y + rects[i].h }, { r, g, b, a }, { 0.0f, 0.0f }, },
         };
 
         D3D11_RenderStartDrawOp(renderer);
@@ -2649,8 +2641,8 @@ D3D11_RenderCopy(SDL_Renderer * renderer, SDL_Texture * texture,
     D3D11_RenderData *rendererData = (D3D11_RenderData *) renderer->driverdata;
     D3D11_TextureData *textureData = (D3D11_TextureData *) texture->driverdata;
     float minu, maxu, minv, maxv;
-    Float4 color;
-    VertexPositionColor vertices[4];
+    SDL_Color color;
+    SDL_Vertex vertices[4];
     ID3D11SamplerState *textureSampler;
 
     D3D11_RenderStartDrawOp(renderer);
@@ -2661,46 +2653,42 @@ D3D11_RenderCopy(SDL_Renderer * renderer, SDL_Texture * texture,
     minv = (float) srcrect->y / texture->h;
     maxv = (float) (srcrect->y + srcrect->h) / texture->h;
 
-    color.x = 1.0f;     /* red */
-    color.y = 1.0f;     /* green */
-    color.z = 1.0f;     /* blue */
-    color.w = 1.0f;     /* alpha */
+    color.r = 255;
+    color.g = 255;
+    color.b = 255;
+    color.a = 255;
     if (texture->modMode & SDL_TEXTUREMODULATE_COLOR) {
-        color.x = (float)(texture->r / 255.0f);     /* red */
-        color.y = (float)(texture->g / 255.0f);     /* green */
-        color.z = (float)(texture->b / 255.0f);     /* blue */
+        color.r = texture->r;
+        color.g = texture->g;
+        color.b = texture->b;
     }
     if (texture->modMode & SDL_TEXTUREMODULATE_ALPHA) {
-        color.w = (float)(texture->a / 255.0f);     /* alpha */
+        color.a = texture->a;
     }
 
-    vertices[0].pos.x = dstrect->x;
-    vertices[0].pos.y = dstrect->y;
-    vertices[0].pos.z = 0.0f;
-    vertices[0].tex.x = minu;
-    vertices[0].tex.y = minv;
+    vertices[0].position.x = dstrect->x;
+    vertices[0].position.y = dstrect->y;
     vertices[0].color = color;
+    vertices[0].tex_coord.x = minu;
+    vertices[0].tex_coord.y = minv;
 
-    vertices[1].pos.x = dstrect->x;
-    vertices[1].pos.y = dstrect->y + dstrect->h;
-    vertices[1].pos.z = 0.0f;
-    vertices[1].tex.x = minu;
-    vertices[1].tex.y = maxv;
+    vertices[1].position.x = dstrect->x;
+    vertices[1].position.y = dstrect->y + dstrect->h;
     vertices[1].color = color;
+    vertices[1].tex_coord.x = minu;
+    vertices[1].tex_coord.y = maxv;
 
-    vertices[2].pos.x = dstrect->x + dstrect->w;
-    vertices[2].pos.y = dstrect->y;
-    vertices[2].pos.z = 0.0f;
-    vertices[2].tex.x = maxu;
-    vertices[2].tex.y = minv;
+    vertices[2].position.x = dstrect->x + dstrect->w;
+    vertices[2].position.y = dstrect->y;
     vertices[2].color = color;
+    vertices[2].tex_coord.x = maxu;
+    vertices[2].tex_coord.y = minv;
 
-    vertices[3].pos.x = dstrect->x + dstrect->w;
-    vertices[3].pos.y = dstrect->y + dstrect->h;
-    vertices[3].pos.z = 0.0f;
-    vertices[3].tex.x = maxu;
-    vertices[3].tex.y = maxv;
+    vertices[3].position.x = dstrect->x + dstrect->w;
+    vertices[3].position.y = dstrect->y + dstrect->h;
     vertices[3].color = color;
+    vertices[3].tex_coord.x = maxu;
+    vertices[3].tex_coord.y = maxv;
 
     if (D3D11_UpdateVertexBuffer(renderer, vertices, sizeof(vertices)) != 0) {
         return -1;
@@ -2728,7 +2716,7 @@ D3D11_RenderCopy(SDL_Renderer * renderer, SDL_Texture * texture,
             textureSampler);
     }
 
-    D3D11_RenderFinishDrawOp(renderer, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, sizeof(vertices) / sizeof(VertexPositionColor));
+    D3D11_RenderFinishDrawOp(renderer, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, sizeof(vertices) / sizeof(SDL_Vertex));
 
     return 0;
 }
@@ -2741,10 +2729,10 @@ D3D11_RenderCopyEx(SDL_Renderer * renderer, SDL_Texture * texture,
     D3D11_RenderData *rendererData = (D3D11_RenderData *) renderer->driverdata;
     D3D11_TextureData *textureData = (D3D11_TextureData *) texture->driverdata;
     float minu, maxu, minv, maxv;
-    Float4 color;
+    SDL_Color color;
     Float4X4 modelMatrix;
     float minx, maxx, miny, maxy;
-    VertexPositionColor vertices[4];
+    SDL_Vertex vertices[4];
     ID3D11SamplerState *textureSampler;
 
     D3D11_RenderStartDrawOp(renderer);
@@ -2755,17 +2743,17 @@ D3D11_RenderCopyEx(SDL_Renderer * renderer, SDL_Texture * texture,
     minv = (float) srcrect->y / texture->h;
     maxv = (float) (srcrect->y + srcrect->h) / texture->h;
 
-    color.x = 1.0f;     /* red */
-    color.y = 1.0f;     /* green */
-    color.z = 1.0f;     /* blue */
-    color.w = 1.0f;     /* alpha */
+    color.r = 255;
+    color.g = 255;
+    color.b = 255;
+    color.a = 255;
     if (texture->modMode & SDL_TEXTUREMODULATE_COLOR) {
-        color.x = (float)(texture->r / 255.0f);     /* red */
-        color.y = (float)(texture->g / 255.0f);     /* green */
-        color.z = (float)(texture->b / 255.0f);     /* blue */
+        color.r = texture->r;
+        color.g = texture->g;
+        color.b = texture->b;
     }
     if (texture->modMode & SDL_TEXTUREMODULATE_ALPHA) {
-        color.w = (float)(texture->a / 255.0f);     /* alpha */
+        color.a = texture->a;
     }
 
     if (flip & SDL_FLIP_HORIZONTAL) {
@@ -2790,33 +2778,29 @@ D3D11_RenderCopyEx(SDL_Renderer * renderer, SDL_Texture * texture,
     miny = -center->y;
     maxy = dstrect->h - center->y;
 
-    vertices[0].pos.x = minx;
-    vertices[0].pos.y = miny;
-    vertices[0].pos.z = 0.0f;
-    vertices[0].tex.x = minu;
-    vertices[0].tex.y = minv;
+    vertices[0].position.x = minx;
+    vertices[0].position.y = miny;
     vertices[0].color = color;
+    vertices[0].tex_coord.x = minu;
+    vertices[0].tex_coord.y = minv;
     
-    vertices[1].pos.x = minx;
-    vertices[1].pos.y = maxy;
-    vertices[1].pos.z = 0.0f;
-    vertices[1].tex.x = minu;
-    vertices[1].tex.y = maxv;
+    vertices[1].position.x = minx;
+    vertices[1].position.y = maxy;
     vertices[1].color = color;
+    vertices[1].tex_coord.x = minu;
+    vertices[1].tex_coord.y = maxv;
     
-    vertices[2].pos.x = maxx;
-    vertices[2].pos.y = miny;
-    vertices[2].pos.z = 0.0f;
-    vertices[2].tex.x = maxu;
-    vertices[2].tex.y = minv;
+    vertices[2].position.x = maxx;
+    vertices[2].position.y = miny;
     vertices[2].color = color;
+    vertices[2].tex_coord.x = maxu;
+    vertices[2].tex_coord.y = minv;
     
-    vertices[3].pos.x = maxx;
-    vertices[3].pos.y = maxy;
-    vertices[3].pos.z = 0.0f;
-    vertices[3].tex.x = maxu;
-    vertices[3].tex.y = maxv;
+    vertices[3].position.x = maxx;
+    vertices[3].position.y = maxy;
     vertices[3].color = color;
+    vertices[3].tex_coord.x = maxu;
+    vertices[3].tex_coord.y = maxv;
 
     if (D3D11_UpdateVertexBuffer(renderer, vertices, sizeof(vertices)) != 0) {
         return -1;
@@ -2844,7 +2828,7 @@ D3D11_RenderCopyEx(SDL_Renderer * renderer, SDL_Texture * texture,
             textureSampler);
     }
 
-    D3D11_RenderFinishDrawOp(renderer, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, sizeof(vertices) / sizeof(VertexPositionColor));
+    D3D11_RenderFinishDrawOp(renderer, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, sizeof(vertices) / sizeof(SDL_Vertex));
 
     D3D11_SetModelMatrix(renderer, NULL);
 
