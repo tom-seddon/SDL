@@ -1907,8 +1907,16 @@ D3D_RenderGeometry(SDL_Renderer *renderer, SDL_Texture *texture, SDL_Vertex *ver
     HRESULT result, drawResult;
     IDirect3DPixelShader9 *shader = NULL;
 
-    if (numIndices % 3 != 0) {
-        SDL_SetError("Invalid index count");
+    if (numVertices <= 0 || (!indices && numVertices % 3 != 0)) {
+        SDL_SetError("bad vertex count");
+        return -1;
+    }
+
+    if (numIndices < 0 || 
+        (!indices && numIndices != 0) ||
+        (indices && (numIndices == 0 || numIndices % 3 != 0)))
+    {
+        SDL_SetError("bad index count");
         return -1;
     }
 
@@ -1971,8 +1979,13 @@ D3D_RenderGeometry(SDL_Renderer *renderer, SDL_Texture *texture, SDL_Vertex *ver
         }
     }
 
-    drawResult = IDirect3DDevice9_DrawIndexedPrimitiveUP(data->device, D3DPT_TRIANGLELIST, 0,
-        numVertices, numIndices / 3, indices, D3DFMT_INDEX32, vertices, sizeof vertices[0]);
+    if (indices) {
+        drawResult = IDirect3DDevice9_DrawIndexedPrimitiveUP(data->device, D3DPT_TRIANGLELIST, 0,
+            numVertices, numIndices / 3, indices, D3DFMT_INDEX32, vertices, sizeof vertices[0]);
+    } else {
+        drawResult = IDirect3DDevice9_DrawPrimitiveUP(data->device, D3DPT_TRIANGLELIST, numVertices / 3,
+            vertices, sizeof vertices[0]);
+    }
 
     if (translation) {
         Float4X4 identityMatrix = MatrixIdentity();
