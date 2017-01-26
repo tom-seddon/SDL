@@ -182,6 +182,12 @@ static const D3DVERTEXELEMENT9 D3D_VertexElements[] = {
     D3DDECL_END(),
 };
 
+// Form a 32-bit colour value suitable for consumption by D3DDECLTYPE_UBYTE4N.
+#define UBYTE4N_ARGB(A,R,G,B) ((((A) & 0xff) << 24) | \
+                               (((B) & 0xff) << 16) | \
+                               (((G) & 0xff) << 8 ) |   \
+                               ((R)&0xff))
+
 typedef struct
 {
     void* d3dDLL;
@@ -1449,7 +1455,7 @@ D3D_RenderDrawPoints(SDL_Renderer * renderer, const SDL_FPoint * points,
         return D3D_SetError("SetTexture()", result);
     }
 
-    color = D3DCOLOR_ARGB(renderer->a, renderer->r, renderer->g, renderer->b);
+    color = UBYTE4N_ARGB(renderer->a, renderer->r, renderer->g, renderer->b);
 
     vertices = SDL_stack_alloc(Vertex, count);
     for (i = 0; i < count; ++i) {
@@ -1492,7 +1498,7 @@ D3D_RenderDrawLines(SDL_Renderer * renderer, const SDL_FPoint * points,
         return D3D_SetError("SetTexture()", result);
     }
 
-    color = D3DCOLOR_ARGB(renderer->a, renderer->r, renderer->g, renderer->b);
+    color = UBYTE4N_ARGB(renderer->a, renderer->r, renderer->g, renderer->b);
 
     vertices = SDL_stack_alloc(Vertex, count);
     for (i = 0; i < count; ++i) {
@@ -1546,7 +1552,7 @@ D3D_RenderFillRects(SDL_Renderer * renderer, const SDL_FRect * rects,
         return D3D_SetError("SetTexture()", result);
     }
 
-    color = D3DCOLOR_ARGB(renderer->a, renderer->r, renderer->g, renderer->b);
+    color = UBYTE4N_ARGB(renderer->a, renderer->r, renderer->g, renderer->b);
 
     for (i = 0; i < count; ++i) {
         const SDL_FRect *rect = &rects[i];
@@ -1635,7 +1641,7 @@ D3D_RenderCopy(SDL_Renderer * renderer, SDL_Texture * texture,
     minv = (float) srcrect->y / texture->h;
     maxv = (float) (srcrect->y + srcrect->h) / texture->h;
 
-    color = D3DCOLOR_ARGB(texture->a, texture->r, texture->g, texture->b);
+    color = UBYTE4N_ARGB(texture->a, texture->r, texture->g, texture->b);
 
     vertices[0].x = minx;
     vertices[0].y = miny;
@@ -1755,7 +1761,7 @@ D3D_RenderCopyEx(SDL_Renderer * renderer, SDL_Texture * texture,
         minv = tmp;
     }
 
-    color = D3DCOLOR_ARGB(texture->a, texture->r, texture->g, texture->b);
+    color = UBYTE4N_ARGB(texture->a, texture->r, texture->g, texture->b);
 
     vertices[0].x = minx;
     vertices[0].y = miny;
