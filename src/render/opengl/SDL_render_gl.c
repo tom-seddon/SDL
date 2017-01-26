@@ -1668,7 +1668,7 @@ static int GL_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, SDL
 	}
 	else {
 	    GL_SetShader(data, SHADER_SOLID);
-	    GL_SetBlendMode(data, SDL_BLENDMODE_BLEND);
+	    GL_SetBlendMode(data, renderer->blendMode);
 	}
 
     if(translation) {

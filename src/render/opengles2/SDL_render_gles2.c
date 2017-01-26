@@ -2040,7 +2040,7 @@ static int GLES2_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, 
         GLES2_SetBlendMode(data, texture->blendMode);
     }
     else {
-        GLES2_SetBlendMode(data, SDL_BLENDMODE_BLEND);
+        GLES2_SetBlendMode(data, renderer->blendMode);
     }
 
     data->glVertexAttribPointer(GLES2_ATTRIBUTE_POSITION, 2, GL_FLOAT, GL_FALSE, sizeof(SDL_Vertex), &vertices[0].position);
