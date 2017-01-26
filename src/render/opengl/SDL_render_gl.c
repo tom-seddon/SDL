@@ -1628,13 +1628,8 @@ static int GL_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, SDL
     if (texture) {
         texturedata = (GL_TextureData *) texture->driverdata;
     }
-    
-    GL_ActivateRenderer(renderer);
 
-    data->glPushMatrix();
-    if(translation) {
-        data->glTranslatef(translation->x, translation->y, 0);
-    }
+    GL_ActivateRenderer(renderer);
 
     if (texture) {
         data->glEnableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -1680,7 +1675,12 @@ static int GL_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, SDL
 	    GL_SetBlendMode(data, SDL_BLENDMODE_BLEND);
 	}
 
-	data->glEnableClientState(GL_VERTEX_ARRAY);
+    if(translation) {
+        data->glPushMatrix();
+        data->glTranslatef(translation->x, translation->y, 0);
+    }
+
+    data->glEnableClientState(GL_VERTEX_ARRAY);
 	data->glEnableClientState(GL_COLOR_ARRAY);
 	data->glVertexPointer(2, GL_FLOAT, sizeof(SDL_Vertex), &vertices[0].position);
 	data->glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(SDL_Vertex), &vertices[0].color);
@@ -1710,7 +1710,9 @@ static int GL_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, SDL
         }
     }
 
-    data->glPopMatrix();
+    if(translation) {
+        data->glPopMatrix();
+    }
 
 	return 0;
 }
