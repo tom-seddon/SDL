@@ -39,7 +39,6 @@
 #include <d3d9.h>
 #endif
 
-
 #ifdef ASSEMBLE_SHADER
 #pragma comment(lib, "d3dx9.lib")
 
@@ -176,6 +175,13 @@ SDL_RenderDriver D3D_RenderDriver = {
      0}
 };
 
+static const D3DVERTEXELEMENT9 D3D_VertexElements[] = {
+    {0, offsetof(SDL_Vertex, position), D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0},
+    {0, offsetof(SDL_Vertex, color), D3DDECLTYPE_UBYTE4N, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_COLOR, 0},
+    {0, offsetof(SDL_Vertex, tex_coord), D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0},
+    D3DDECL_END(),
+};
+
 typedef struct
 {
     void* d3dDLL;
@@ -191,6 +197,7 @@ typedef struct
     IDirect3DSurface9 *currentRenderTarget;
     void* d3dxDLL;
     LPDIRECT3DPIXELSHADER9 ps_yuv;
+    IDirect3DVertexDeclaration9 *decl;
 } D3D_RenderData;
 
 typedef struct
@@ -344,7 +351,7 @@ D3D_InitRenderState(D3D_RenderData *data)
     IDirect3DDevice9 *device = data->device;
 
     IDirect3DDevice9_SetVertexShader(device, NULL);
-    IDirect3DDevice9_SetFVF(device, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1);
+    IDirect3DDevice9_SetVertexDeclaration(device, data->decl);
     IDirect3DDevice9_SetRenderState(device, D3DRS_ZENABLE, D3DZB_FALSE);
     IDirect3DDevice9_SetRenderState(device, D3DRS_CULLMODE, D3DCULL_NONE);
     IDirect3DDevice9_SetRenderState(device, D3DRS_LIGHTING, FALSE);
@@ -622,6 +629,16 @@ D3D_CreateRenderer(SDL_Window * window, Uint32 flags)
     if (FAILED(result)) {
         D3D_DestroyRenderer(renderer);
         D3D_SetError("CreateDevice()", result);
+        return NULL;
+    }
+
+    /* Create vertex declaration */
+    result = IDirect3DDevice9_CreateVertexDeclaration(data->device, 
+                                                      D3D_VertexElements, 
+                                                      &data->decl);
+    if (FAILED(result)) {
+        D3D_DestroyRenderer(renderer);
+        D3D_SetError("CReateDevice()", result);
         return NULL;
     }
 
@@ -2040,6 +2057,9 @@ D3D_DestroyRenderer(SDL_Renderer * renderer)
         }
         if (data->ps_yuv) {
             IDirect3DPixelShader9_Release(data->ps_yuv);
+        }
+        if (data->decl) {
+            IDirect3DVertexDeclaration9_Release(data->decl);
         }
         if (data->device) {
             IDirect3DDevice9_Release(data->device);
