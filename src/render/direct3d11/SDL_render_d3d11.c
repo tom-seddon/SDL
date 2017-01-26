@@ -100,6 +100,7 @@ typedef struct
     ID3D11RenderTargetView *currentOffscreenRenderTargetView;
     ID3D11InputLayout *inputLayout;
     ID3D11Buffer *vertexBuffer;
+    ID3D11Buffer *indexBuffer;
     ID3D11VertexShader *vertexShader;
     ID3D11PixelShader *colorPixelShader;
     ID3D11PixelShader *texturePixelShader;
@@ -737,6 +738,10 @@ static int D3D11_RenderCopyEx(SDL_Renderer * renderer, SDL_Texture * texture,
                               const double angle, const SDL_FPoint * center, const SDL_RendererFlip flip);
 static int D3D11_RenderReadPixels(SDL_Renderer * renderer, const SDL_Rect * rect,
                                   Uint32 format, void * pixels, int pitch);
+static int D3D11_RenderGeometry(SDL_Renderer *renderer, SDL_Texture *texture, 
+                                SDL_Vertex *vertices, int numVertices,
+                                int *indices, int numIndices, 
+                                const SDL_Vector2f *translation);
 static void D3D11_RenderPresent(SDL_Renderer * renderer);
 static void D3D11_DestroyTexture(SDL_Renderer * renderer,
                                  SDL_Texture * texture);
@@ -833,6 +838,7 @@ D3D11_CreateRenderer(SDL_Window * window, Uint32 flags)
     renderer->RenderCopy = D3D11_RenderCopy;
     renderer->RenderCopyEx = D3D11_RenderCopyEx;
     renderer->RenderReadPixels = D3D11_RenderReadPixels;
+    renderer->RenderGeometry = D3D11_RenderGeometry;
     renderer->RenderPresent = D3D11_RenderPresent;
     renderer->DestroyTexture = D3D11_DestroyTexture;
     renderer->DestroyRenderer = D3D11_DestroyRenderer;
@@ -899,6 +905,7 @@ D3D11_ReleaseAll(SDL_Renderer * renderer)
         SAFE_RELEASE(data->currentOffscreenRenderTargetView);
         SAFE_RELEASE(data->inputLayout);
         SAFE_RELEASE(data->vertexBuffer);
+        SAFE_RELEASE(data->indexBuffer);
         SAFE_RELEASE(data->vertexShader);
         SAFE_RELEASE(data->colorPixelShader);
         SAFE_RELEASE(data->texturePixelShader);
@@ -2337,69 +2344,113 @@ D3D11_RenderClear(SDL_Renderer * renderer)
     return 0;
 }
 
-static int
-D3D11_UpdateVertexBuffer(SDL_Renderer *renderer,
-                         const void * vertexData, size_t dataSizeInBytes)
-{
-    D3D11_RenderData *rendererData = (D3D11_RenderData *) renderer->driverdata;
-    D3D11_BUFFER_DESC vertexBufferDesc;
-    HRESULT result = S_OK;
-    D3D11_SUBRESOURCE_DATA vertexBufferData;
-    const UINT stride = sizeof(SDL_Vertex);
-    const UINT offset = 0;
+//static int
+//D3D11_UpdateIndexBuffer(SDL_Renderer *renderer,
+//                        const void *indexData, size_t dataSizeInBytes)
+//{
+//    D3D11_UpdateBuffer(renderer, indexData, dataSizeIn
+//}
 
-    if (rendererData->vertexBuffer) {
-        ID3D11Buffer_GetDesc(rendererData->vertexBuffer, &vertexBufferDesc);
+static int
+D3D11_UpdateBuffer(D3D11_RenderData *rendererData,
+    const void * data, size_t dataSizeInBytes,
+    ID3D11Buffer **bufferPtr, D3D11_BIND_FLAG bufferBindFlag)
+{
+    D3D11_BUFFER_DESC bufferDesc;
+    HRESULT result = S_OK;
+    D3D11_SUBRESOURCE_DATA bufferData;
+
+    if (*bufferPtr) {
+        ID3D11Buffer_GetDesc(*bufferPtr, &bufferDesc);
     } else {
-        SDL_zero(vertexBufferDesc);
+        SDL_zero(bufferDesc);
     }
 
-    if (rendererData->vertexBuffer && vertexBufferDesc.ByteWidth >= dataSizeInBytes) {
+    if (*bufferPtr && bufferDesc.ByteWidth >= dataSizeInBytes) {
         D3D11_MAPPED_SUBRESOURCE mappedResource;
         result = ID3D11DeviceContext_Map(rendererData->d3dContext,
-            (ID3D11Resource *)rendererData->vertexBuffer,
+            (ID3D11Resource *)*bufferPtr,
             0,
             D3D11_MAP_WRITE_DISCARD,
             0,
-            &mappedResource
-            );
+            &mappedResource);
         if (FAILED(result)) {
             WIN_SetErrorFromHRESULT(SDL_COMPOSE_ERROR("ID3D11DeviceContext1::Map [vertex buffer]"), result);
             return -1;
         }
-        SDL_memcpy(mappedResource.pData, vertexData, dataSizeInBytes);
-        ID3D11DeviceContext_Unmap(rendererData->d3dContext, (ID3D11Resource *)rendererData->vertexBuffer, 0);
+        SDL_memcpy(mappedResource.pData, data, dataSizeInBytes);
+        ID3D11DeviceContext_Unmap(rendererData->d3dContext, (ID3D11Resource *)*bufferPtr, 0);
     } else {
-        SAFE_RELEASE(rendererData->vertexBuffer);
+        SAFE_RELEASE(*bufferPtr);
 
-        vertexBufferDesc.ByteWidth = (UINT) dataSizeInBytes;
-        vertexBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-        vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-        vertexBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        bufferDesc.ByteWidth = (UINT)dataSizeInBytes;
+        bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+        bufferDesc.BindFlags = bufferBindFlag;
+        bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-        SDL_zero(vertexBufferData);
-        vertexBufferData.pSysMem = vertexData;
-        vertexBufferData.SysMemPitch = 0;
-        vertexBufferData.SysMemSlicePitch = 0;
+        SDL_zero(bufferData);
+        bufferData.pSysMem = data;
+        bufferData.SysMemPitch = 0;
+        bufferData.SysMemSlicePitch = 0;
 
         result = ID3D11Device_CreateBuffer(rendererData->d3dDevice,
-            &vertexBufferDesc,
-            &vertexBufferData,
-            &rendererData->vertexBuffer
-            );
+            &bufferDesc,
+            &bufferData,
+            bufferPtr);
         if (FAILED(result)) {
             WIN_SetErrorFromHRESULT(SDL_COMPOSE_ERROR("ID3D11Device1::CreateBuffer [vertex buffer]"), result);
             return -1;
         }
-
-        ID3D11DeviceContext_IASetVertexBuffers(rendererData->d3dContext,
-            0,
-            1,
-            &rendererData->vertexBuffer,
-            &stride,
-            &offset
-            );
     }
+
+    return 0;
+}
+
+static int
+D3D11_UpdateVertexBuffer(SDL_Renderer *renderer,
+    const void * vertexData, size_t dataSizeInBytes)
+{
+    D3D11_RenderData *rendererData = renderer->driverdata;
+    const UINT stride = sizeof(SDL_Vertex);
+    const UINT offset = 0;
+
+    if (D3D11_UpdateBuffer(rendererData,
+        vertexData, dataSizeInBytes,
+        &rendererData->vertexBuffer, D3D11_BIND_VERTEX_BUFFER) != 0)
+    {
+        return -1;
+    }
+
+    ID3D11DeviceContext_IASetVertexBuffers(rendererData->d3dContext,
+        0,
+        1,
+        &rendererData->vertexBuffer,
+        &stride,
+        &offset
+    );
+
+    return 0;
+}
+
+static int
+D3D11_UpdateIndexBuffer(SDL_Renderer *renderer,
+    const void * indexData, size_t dataSizeInBytes)
+{
+    D3D11_RenderData *rendererData = renderer->driverdata;
+    const UINT stride = sizeof(SDL_Vertex);
+    const UINT offset = 0;
+
+    if (D3D11_UpdateBuffer(rendererData,
+        indexData, dataSizeInBytes,
+        &rendererData->indexBuffer, D3D11_BIND_INDEX_BUFFER) != 0)
+    {
+        return -1;
+    }
+
+    ID3D11DeviceContext_IASetIndexBuffer(rendererData->d3dContext,
+        rendererData->indexBuffer,
+        DXGI_FORMAT_R32_UINT,
+        0);
 
     return 0;
 }
@@ -2484,14 +2535,34 @@ D3D11_SetPixelShader(SDL_Renderer * renderer,
 }
 
 static void
+D3D11_RenderFinishDrawOpCommon(D3D11_RenderData *rendererData,
+    D3D11_PRIMITIVE_TOPOLOGY primitiveTopology)
+{
+    ID3D11DeviceContext_IASetPrimitiveTopology(rendererData->d3dContext, primitiveTopology);
+}
+
+static void
 D3D11_RenderFinishDrawOp(SDL_Renderer * renderer,
                          D3D11_PRIMITIVE_TOPOLOGY primitiveTopology,
                          UINT vertexCount)
 {
     D3D11_RenderData *rendererData = (D3D11_RenderData *) renderer->driverdata;
 
-    ID3D11DeviceContext_IASetPrimitiveTopology(rendererData->d3dContext, primitiveTopology);
+    D3D11_RenderFinishDrawOpCommon(rendererData, primitiveTopology);
+
     ID3D11DeviceContext_Draw(rendererData->d3dContext, vertexCount, 0);
+}
+
+static void
+D3D11_RenderFinishDrawIndexedOp(SDL_Renderer * renderer,
+    D3D11_PRIMITIVE_TOPOLOGY primitiveTopology,
+    UINT indexCount)
+{
+    D3D11_RenderData *rendererData = (D3D11_RenderData *) renderer->driverdata;
+
+    D3D11_RenderFinishDrawOpCommon(rendererData, primitiveTopology);
+
+    ID3D11DeviceContext_DrawIndexed(rendererData->d3dContext, indexCount, 0, 0);
 }
 
 static int
@@ -2940,6 +3011,84 @@ done:
     SAFE_RELEASE(backBuffer);
     SAFE_RELEASE(stagingTexture);
     return status;
+}
+
+static int
+D3D11_RenderGeometry(SDL_Renderer *renderer, SDL_Texture *texture, SDL_Vertex *vertices, int numVertices,
+    int *indices, int numIndices, const SDL_Vector2f *translation)
+{
+    D3D11_RenderData *rendererData = renderer->driverdata;
+    Float4X4 modelMatrix;
+
+    if (numVertices <= 0 || (!indices && numVertices % 3 != 0)) {
+        SDL_SetError("bad vertex count");
+        return -1;
+    }
+
+    if (numIndices < 0 || 
+        (!indices && numIndices != 0) ||
+        (indices && (numIndices == 0 || numIndices % 3 != 0)))
+    {
+        SDL_SetError("bad index count");
+        return -1;
+    }
+
+    D3D11_RenderStartDrawOp(renderer);
+
+    if (translation) {
+        modelMatrix = MatrixTranslation(translation->x, translation->y, 0.f);
+    } else {
+        modelMatrix = MatrixIdentity();
+    }
+
+    D3D11_SetModelMatrix(renderer, &modelMatrix);
+
+    if (texture) {
+        D3D11_TextureData *textureData = texture->driverdata;
+        ID3D11SamplerState *textureSampler;
+
+        textureSampler = D3D11_RenderGetSampler(renderer, texture);
+        if (textureData->yuv) {
+            ID3D11ShaderResourceView *shaderResources[] = {
+                textureData->mainTextureResourceView,
+                textureData->mainTextureResourceViewU,
+                textureData->mainTextureResourceViewV
+            };
+            D3D11_SetPixelShader(
+                renderer,
+                rendererData->yuvPixelShader,
+                SDL_arraysize(shaderResources),
+                shaderResources,
+                textureSampler);
+        } else {
+            D3D11_SetPixelShader(
+                renderer,
+                rendererData->texturePixelShader,
+                1,
+                &textureData->mainTextureResourceView,
+                textureSampler);
+        }
+    } else {
+        D3D11_RenderSetBlendMode(renderer, renderer->blendMode);
+
+        D3D11_SetPixelShader(renderer, rendererData->colorPixelShader, 0, NULL, NULL);
+    }
+
+    if (D3D11_UpdateVertexBuffer(renderer, vertices, (size_t)numVertices * sizeof(SDL_Vertex)) != 0) {
+        return -1;
+    }
+
+    if (indices) {
+        if (D3D11_UpdateIndexBuffer(renderer, indices, (size_t)numIndices * 4) != 0) {
+            return -1;
+        }
+
+        D3D11_RenderFinishDrawIndexedOp(renderer, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, numIndices);
+    } else {
+        D3D11_RenderFinishDrawOp(renderer, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, numVertices);
+    }
+
+    return 0;
 }
 
 static void
