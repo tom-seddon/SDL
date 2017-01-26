@@ -1066,6 +1066,8 @@ GL_UpdateViewport(SDL_Renderer * renderer)
                            0.0, 1.0);
         }
     }
+    data->glMatrixMode(GL_MODELVIEW);
+
     return GL_CheckError("", renderer);
 }
 
