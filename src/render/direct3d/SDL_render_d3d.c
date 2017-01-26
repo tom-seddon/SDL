@@ -156,6 +156,9 @@ static int D3D_RenderCopyEx(SDL_Renderer * renderer, SDL_Texture * texture,
                           const double angle, const SDL_FPoint * center, const SDL_RendererFlip flip);
 static int D3D_RenderReadPixels(SDL_Renderer * renderer, const SDL_Rect * rect,
                                 Uint32 format, void * pixels, int pitch);
+static int D3D_RenderGeometry(SDL_Renderer *renderer, SDL_Texture *texture, SDL_Vertex *vertices,
+                              int numVertices, int *indices, int numIndices,
+                              const SDL_Vector2f *translation);
 static void D3D_RenderPresent(SDL_Renderer * renderer);
 static void D3D_DestroyTexture(SDL_Renderer * renderer,
                                SDL_Texture * texture);
@@ -557,6 +560,7 @@ D3D_CreateRenderer(SDL_Window * window, Uint32 flags)
     renderer->RenderCopy = D3D_RenderCopy;
     renderer->RenderCopyEx = D3D_RenderCopyEx;
     renderer->RenderReadPixels = D3D_RenderReadPixels;
+    renderer->RenderGeometry = D3D_RenderGeometry;
     renderer->RenderPresent = D3D_RenderPresent;
     renderer->DestroyTexture = D3D_DestroyTexture;
     renderer->DestroyRenderer = D3D_DestroyRenderer;
@@ -1882,6 +1886,98 @@ D3D_RenderReadPixels(SDL_Renderer * renderer, const SDL_Rect * rect,
     IDirect3DSurface9_UnlockRect(surface);
 
     IDirect3DSurface9_Release(surface);
+
+    return 0;
+}
+
+static int
+D3D_RenderGeometry(SDL_Renderer *renderer, SDL_Texture *texture, SDL_Vertex *vertices, int numVertices,
+                   int *indices, int numIndices, const SDL_Vector2f *translation)
+{
+    D3D_RenderData *data = renderer->driverdata;
+    HRESULT result, drawResult;
+    IDirect3DPixelShader9 *shader = NULL;
+
+    if (numIndices % 3 != 0) {
+        SDL_SetError("Invalid index count");
+        return -1;
+    }
+
+    if (D3D_ActivateRenderer(renderer) < 0) {
+        return -1;
+    }
+
+    if (texture) {
+        D3D_TextureData *texturedata;
+
+        D3D_SetBlendMode(data, texture->blendMode);
+
+        texturedata = (D3D_TextureData *)texture->driverdata;
+        if (!texturedata) {
+            SDL_SetError("Texture is not currently available");
+            return -1;
+        }
+
+        D3D_UpdateTextureScaleMode(data, texturedata, 0);
+
+        if (D3D_BindTextureRep(data->device, &texturedata->texture, 0) < 0) {
+            return -1;
+        }
+
+        if (texturedata->yuv) {
+            shader = data->ps_yuv;
+
+            D3D_UpdateTextureScaleMode(data, texturedata, 1);
+            D3D_UpdateTextureScaleMode(data, texturedata, 2);
+
+            if (D3D_BindTextureRep(data->device, &texturedata->utexture, 1) < 0) {
+                return -1;
+            }
+            if (D3D_BindTextureRep(data->device, &texturedata->vtexture, 2) < 0) {
+                return -1;
+            }
+        }
+
+        if (shader) {
+            result = IDirect3DDevice9_SetPixelShader(data->device, shader);
+            if (FAILED(result)) {
+                return D3D_SetError("SetShader()", result);
+            }
+        }
+    } else {
+        D3D_SetBlendMode(data, renderer->blendMode);
+
+        result = IDirect3DDevice9_SetTexture(data->device, 0, NULL);
+        if (FAILED(result)) {
+            return D3D_SetError("SetTexture()", result);
+        }
+    }
+
+    if (translation) {
+        Float4X4 translationMatrix = MatrixTranslation(translation->x, translation->y, 0.f);
+
+        result = IDirect3DDevice9_SetTransform(data->device, D3DTS_VIEW, (D3DMATRIX *)&translationMatrix);
+        if (FAILED(result)) {
+            return D3D_SetError("SetTransform(D3DTS_VIEW)", result);
+        }
+    }
+
+    drawResult = IDirect3DDevice9_DrawIndexedPrimitiveUP(data->device, D3DPT_TRIANGLELIST, 0,
+        numVertices, numIndices / 3, indices, D3DFMT_INDEX32, vertices, sizeof vertices[0]);
+
+    if (translation) {
+        Float4X4 identityMatrix = MatrixIdentity();
+
+        IDirect3DDevice9_SetTransform(data->device, D3DTS_VIEW, (D3DMATRIX *)&identityMatrix);
+    }
+
+    if (shader) {
+        result = IDirect3DDevice9_SetPixelShader(data->device, NULL);
+    }
+
+    if (FAILED(drawResult)) {
+        return D3D_SetError("DrawIndexedPrimitiveUP()", drawResult);
+    }
 
     return 0;
 }

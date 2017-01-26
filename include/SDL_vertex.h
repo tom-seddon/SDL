@@ -44,13 +44,26 @@ typedef struct
     float y;
 } SDL_Vector2f;
 
+typedef struct 
+{
+    float x;
+    float y;
+
+    // The z coordinate should always be 0.f.
+    //
+    // (If you start out with a 0-initialized buffer (global array,
+    // calloc, etc.), or use C struct initializer syntax, then you can
+    // just ignore Z and you'll be good.)
+    float z;
+} SDL_Vector3f;
+
 /**
  *  \brief  The structure that defines a vertex
  *
  */
 typedef struct
 {
-    SDL_Vector2f position;
+    SDL_Vector3f position;
     SDL_Color color;
     SDL_Vector2f tex_coord;
 } SDL_Vertex;
