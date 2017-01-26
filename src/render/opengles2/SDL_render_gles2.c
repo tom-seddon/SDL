@@ -2098,31 +2098,6 @@ static int GLES2_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, 
 }
 
 
-static int GLES2_EnableScissor(SDL_Renderer * renderer)
-{
-    GLES2_DriverContext *data = (GLES2_DriverContext *) renderer->driverdata;
-    data->glEnable(GL_SCISSOR_TEST);
-    return 0;
-}
-
-static int GLES2_DisableScissor(SDL_Renderer * renderer)
-{
-    GLES2_DriverContext *data = (GLES2_DriverContext *)renderer->driverdata;
-    data->glDisable(GL_SCISSOR_TEST);
-    return 0;
-}
-
-static int GLES2_ScissorRegion(SDL_Renderer * renderer, const SDL_Rect *region)
-{
-    GLES2_DriverContext *data = (GLES2_DriverContext *)renderer->driverdata;
-	int w_width, w_height;
-	SDL_GetWindowSize(renderer->window, &w_width, &w_height);
-	data->glScissor(region->x, w_height - (region->y + region->h), region->w, region->h);
-	return 0;
-}
-
-
-
 /*************************************************************************************************
  * Renderer instantiation                                                                        *
  *************************************************************************************************/
@@ -2318,9 +2293,6 @@ GLES2_CreateRenderer(SDL_Window *window, Uint32 flags)
     renderer->GL_BindTexture      = &GLES2_BindTexture;
     renderer->GL_UnbindTexture    = &GLES2_UnbindTexture;
     renderer->RenderGeometry      = &GLES2_RenderGeometry;
-    renderer->EnableScissor       = &GLES2_EnableScissor;
-    renderer->DisableScissor      = &GLES2_DisableScissor;
-    renderer->ScissorRegion       = &GLES2_ScissorRegion;
 
     renderer->info.texture_formats[renderer->info.num_texture_formats++] = SDL_PIXELFORMAT_YV12;
     renderer->info.texture_formats[renderer->info.num_texture_formats++] = SDL_PIXELFORMAT_IYUV;

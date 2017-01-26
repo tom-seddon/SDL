@@ -2011,37 +2011,4 @@ int SDL_RenderGeometry(SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex
     return renderer->RenderGeometry(renderer, texture, vertices, num_vertices, indices, num_indices, translation);
 }
 
-int SDL_EnableScissor (SDL_Renderer * renderer)
-{
-    if(renderer && renderer->EnableScissor) {
-        renderer->EnableScissor(renderer);
-    }
-
-    SDL_Unsupported();
-    return -1;
-}
-
-int SDL_DisableScissor (SDL_Renderer * renderer)
-{
-    if(renderer && renderer->DisableScissor) {
-        renderer->DisableScissor(renderer);
-    }
-
-    SDL_Unsupported();
-    return -1;
-}
-
-int SDL_ScissorRegion(SDL_Renderer * renderer, const SDL_Rect *region)
-{
-    if(renderer && renderer->ScissorRegion) {
-        if (region) {
-            return renderer->ScissorRegion(renderer, region);
-        }
-        return -1;
-    }
-
-    SDL_Unsupported();
-    return -1;
-}
-
 /* vi: set ts=4 sw=4 expandtab: */

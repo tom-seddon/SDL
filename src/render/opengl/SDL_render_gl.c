@@ -90,9 +90,6 @@ static void GL_DestroyRenderer(SDL_Renderer * renderer);
 static int GL_BindTexture (SDL_Renderer * renderer, SDL_Texture *texture, float *texw, float *texh);
 static int GL_UnbindTexture (SDL_Renderer * renderer, SDL_Texture *texture);
 static int GL_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex *vertices, int num_vertices, int* indices, int num_indices, const SDL_Vector2f *translation);
-static int GL_EnableScissor(SDL_Renderer * renderer);
-static int GL_DisableScissor(SDL_Renderer * renderer);
-static int GL_ScissorRegion(SDL_Renderer * renderer, const SDL_Rect *region);
 
 SDL_RenderDriver GL_RenderDriver = {
     GL_CreateRenderer,
@@ -455,9 +452,6 @@ GL_CreateRenderer(SDL_Window * window, Uint32 flags)
     renderer->GL_BindTexture = GL_BindTexture;
     renderer->GL_UnbindTexture = GL_UnbindTexture;
     renderer->RenderGeometry = GL_RenderGeometry;
-    renderer->EnableScissor = GL_EnableScissor;
-    renderer->DisableScissor = GL_DisableScissor;
-    renderer->ScissorRegion = GL_ScissorRegion;
     renderer->info = GL_RenderDriver.info;
     renderer->info.flags = SDL_RENDERER_ACCELERATED;
     renderer->driverdata = data;
@@ -1716,28 +1710,6 @@ static int GL_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, SDL
         data->glPopMatrix();
     }
 
-	return 0;
-}
-
-
-static int GL_EnableScissor(SDL_Renderer * renderer) {
-    GL_RenderData *data = (GL_RenderData *) renderer->driverdata;
-    data->glEnable(GL_SCISSOR_TEST);
-    return 0;
-}
-
-static int GL_DisableScissor(SDL_Renderer * renderer) {
-    GL_RenderData *data = (GL_RenderData *) renderer->driverdata;
-    data->glDisable(GL_SCISSOR_TEST);
-    return 0;
-}
-
-static int GL_ScissorRegion(SDL_Renderer * renderer, const SDL_Rect *region)
-{
-    GL_RenderData *data = (GL_RenderData *) renderer->driverdata;
-	int w_width, w_height;
-	SDL_GetWindowSize(renderer->window, &w_width, &w_height);
-	data->glScissor(region->x, w_height - (region->y + region->h), region->w, region->h);
 	return 0;
 }
 
