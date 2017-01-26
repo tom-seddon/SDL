@@ -176,7 +176,7 @@ SDL_RenderDriver D3D_RenderDriver = {
 };
 
 static const D3DVERTEXELEMENT9 D3D_VertexElements[] = {
-    {0, offsetof(SDL_Vertex, position), D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0},
+    {0, offsetof(SDL_Vertex, position), D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0},
     {0, offsetof(SDL_Vertex, color), D3DDECLTYPE_UBYTE4N, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_COLOR, 0},
     {0, offsetof(SDL_Vertex, tex_coord), D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0},
     D3DDECL_END(),
@@ -226,7 +226,7 @@ typedef struct
 
 typedef struct
 {
-    float x, y, z;
+    float x, y;
     DWORD color;
     float u, v;
 } Vertex;
@@ -1455,7 +1455,6 @@ D3D_RenderDrawPoints(SDL_Renderer * renderer, const SDL_FPoint * points,
     for (i = 0; i < count; ++i) {
         vertices[i].x = points[i].x;
         vertices[i].y = points[i].y;
-        vertices[i].z = 0.0f;
         vertices[i].color = color;
         vertices[i].u = 0.0f;
         vertices[i].v = 0.0f;
@@ -1499,7 +1498,6 @@ D3D_RenderDrawLines(SDL_Renderer * renderer, const SDL_FPoint * points,
     for (i = 0; i < count; ++i) {
         vertices[i].x = points[i].x;
         vertices[i].y = points[i].y;
-        vertices[i].z = 0.0f;
         vertices[i].color = color;
         vertices[i].u = 0.0f;
         vertices[i].v = 0.0f;
@@ -1560,28 +1558,24 @@ D3D_RenderFillRects(SDL_Renderer * renderer, const SDL_FRect * rects,
 
         vertices[0].x = minx;
         vertices[0].y = miny;
-        vertices[0].z = 0.0f;
         vertices[0].color = color;
         vertices[0].u = 0.0f;
         vertices[0].v = 0.0f;
 
         vertices[1].x = maxx;
         vertices[1].y = miny;
-        vertices[1].z = 0.0f;
         vertices[1].color = color;
         vertices[1].u = 0.0f;
         vertices[1].v = 0.0f;
 
         vertices[2].x = maxx;
         vertices[2].y = maxy;
-        vertices[2].z = 0.0f;
         vertices[2].color = color;
         vertices[2].u = 0.0f;
         vertices[2].v = 0.0f;
 
         vertices[3].x = minx;
         vertices[3].y = maxy;
-        vertices[3].z = 0.0f;
         vertices[3].color = color;
         vertices[3].u = 0.0f;
         vertices[3].v = 0.0f;
@@ -1645,28 +1639,24 @@ D3D_RenderCopy(SDL_Renderer * renderer, SDL_Texture * texture,
 
     vertices[0].x = minx;
     vertices[0].y = miny;
-    vertices[0].z = 0.0f;
     vertices[0].color = color;
     vertices[0].u = minu;
     vertices[0].v = minv;
 
     vertices[1].x = maxx;
     vertices[1].y = miny;
-    vertices[1].z = 0.0f;
     vertices[1].color = color;
     vertices[1].u = maxu;
     vertices[1].v = minv;
 
     vertices[2].x = maxx;
     vertices[2].y = maxy;
-    vertices[2].z = 0.0f;
     vertices[2].color = color;
     vertices[2].u = maxu;
     vertices[2].v = maxv;
 
     vertices[3].x = minx;
     vertices[3].y = maxy;
-    vertices[3].z = 0.0f;
     vertices[3].color = color;
     vertices[3].u = minu;
     vertices[3].v = maxv;
@@ -1769,28 +1759,24 @@ D3D_RenderCopyEx(SDL_Renderer * renderer, SDL_Texture * texture,
 
     vertices[0].x = minx;
     vertices[0].y = miny;
-    vertices[0].z = 0.0f;
     vertices[0].color = color;
     vertices[0].u = minu;
     vertices[0].v = minv;
 
     vertices[1].x = maxx;
     vertices[1].y = miny;
-    vertices[1].z = 0.0f;
     vertices[1].color = color;
     vertices[1].u = maxu;
     vertices[1].v = minv;
 
     vertices[2].x = maxx;
     vertices[2].y = maxy;
-    vertices[2].z = 0.0f;
     vertices[2].color = color;
     vertices[2].u = maxu;
     vertices[2].v = maxv;
 
     vertices[3].x = minx;
     vertices[3].y = maxy;
-    vertices[3].z = 0.0f;
     vertices[3].color = color;
     vertices[3].u = minu;
     vertices[3].v = maxv;
