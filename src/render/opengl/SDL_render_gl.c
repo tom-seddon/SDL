@@ -1665,11 +1665,11 @@ static int GL_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, SDL
             };
         }
         GL_SetBlendMode(data, texture->blendMode);
-	}
-	else {
-	    GL_SetShader(data, SHADER_SOLID);
-	    GL_SetBlendMode(data, renderer->blendMode);
-	}
+    }
+    else {
+        GL_SetShader(data, SHADER_SOLID);
+        GL_SetBlendMode(data, renderer->blendMode);
+    }
 
     if(translation) {
         data->glPushMatrix();
@@ -1677,25 +1677,25 @@ static int GL_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, SDL
     }
 
     data->glEnableClientState(GL_VERTEX_ARRAY);
-	data->glEnableClientState(GL_COLOR_ARRAY);
-	data->glVertexPointer(2, GL_FLOAT, sizeof(SDL_Vertex), &vertices[0].position);
-	data->glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(SDL_Vertex), &vertices[0].color);
-	data->glTexCoordPointer(2, GL_FLOAT, sizeof(SDL_Vertex), &vertices[0].tex_coord);
+    data->glEnableClientState(GL_COLOR_ARRAY);
+    data->glVertexPointer(2, GL_FLOAT, sizeof(SDL_Vertex), &vertices[0].position);
+    data->glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(SDL_Vertex), &vertices[0].color);
+    data->glTexCoordPointer(2, GL_FLOAT, sizeof(SDL_Vertex), &vertices[0].tex_coord);
 
-	if (indices) {
-	    data->glDrawElements(GL_TRIANGLES, num_indices, GL_UNSIGNED_INT, indices);
-	}
-	else {
-	    data->glDrawArrays(GL_TRIANGLES, 0, num_vertices);
-	}
-	data->glDisableClientState(GL_VERTEX_ARRAY);
-	data->glDisableClientState(GL_COLOR_ARRAY);
+    if (indices) {
+        data->glDrawElements(GL_TRIANGLES, num_indices, GL_UNSIGNED_INT, indices);
+    }
+    else {
+        data->glDrawArrays(GL_TRIANGLES, 0, num_vertices);
+    }
+    data->glDisableClientState(GL_VERTEX_ARRAY);
+    data->glDisableClientState(GL_COLOR_ARRAY);
 
-	if(texture) {
+    if(texture) {
         if (texturedata->type == GL_TEXTURE_RECTANGLE_ARB && !data->GL_shaders_textureSize_supported ) {
             /* Unscale values in case the user wants to re submit them
-            TODO: As this is not an exact procedure, evaluate the merits of allocating extra memory and copying values
-                  instead, trying to avoid excessive fragmentation.
+               TODO: As this is not an exact procedure, evaluate the merits of allocating extra memory and copying values
+               instead, trying to avoid excessive fragmentation.
             */
             for(i = 0; i < num_vertices; i++)
             {
