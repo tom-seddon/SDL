@@ -2008,6 +2008,10 @@ int SDL_RenderGeometry(SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex
         return -1;
     }
 
+    if (texture->native) {
+        texture = texture->native;
+    }
+
     return renderer->RenderGeometry(renderer, texture, vertices, num_vertices, indices, num_indices, translation);
 }
 
