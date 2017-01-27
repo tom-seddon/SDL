@@ -1704,6 +1704,8 @@ static int GL_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, SDL
                 vertices[i].tex_coord.y /= texturedata->texh;
             };
         }
+
+        GL_UnbindTexture(renderer, texture);
     }
 
     if(translation) {
