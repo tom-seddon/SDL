@@ -90,9 +90,6 @@ static void GLES_DestroyRenderer(SDL_Renderer * renderer);
 static int GLES_BindTexture (SDL_Renderer * renderer, SDL_Texture *texture, float *texw, float *texh);
 static int GLES_UnbindTexture (SDL_Renderer * renderer, SDL_Texture *texture);
 static int GLES_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex *vertices, int num_vertices, int* indices, int num_indices, const SDL_Vector2f *translation);
-static int GLES_EnableScissor(SDL_Renderer * renderer);
-static int GLES_DisableScissor(SDL_Renderer * renderer);
-static int GLES_ScissorRegion(SDL_Renderer * renderer, const SDL_Rect *region);
 
 
 typedef struct GLES_FBOList GLES_FBOList;
@@ -344,9 +341,6 @@ GLES_CreateRenderer(SDL_Window * window, Uint32 flags)
     renderer->GL_BindTexture = GLES_BindTexture;
     renderer->GL_UnbindTexture = GLES_UnbindTexture;
     renderer->RenderGeometry = GLES_RenderGeometry;
-    renderer->EnableScissor = GLES_EnableScissor;
-    renderer->DisableScissor = GLES_DisableScissor;
-    renderer->ScissorRegion = GLES_ScissorRegion;
     renderer->info = GLES_RenderDriver.info;
     renderer->info.flags = SDL_RENDERER_ACCELERATED;
     renderer->driverdata = data;
@@ -1280,30 +1274,6 @@ static int GLES_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, S
     data->glPopMatrix();
 
     return 0;
-}
-
-
-static int GLES_EnableScissor(SDL_Renderer * renderer)
-{
-    GLES_RenderData *data = (GLES_RenderData *) renderer->driverdata;
-    data->glEnable(GL_SCISSOR_TEST);
-    return 0;
-}
-
-static int GLES_DisableScissor(SDL_Renderer * renderer)
-{
-    GLES_RenderData *data = (GLES_RenderData *)renderer->driverdata;
-    data->glDisable(GL_SCISSOR_TEST);
-    return 0;
-}
-
-static int GLES_ScissorRegion(SDL_Renderer * renderer, const SDL_Rect *region)
-{
-    GLES_RenderData *data = (GLES_RenderData *)renderer->driverdata;
-	int w_width, w_height;
-	SDL_GetWindowSize(renderer->window, &w_width, &w_height);
-	data->glScissor(region->x, w_height - (region->y + region->h), region->w, region->h);
-	return 0;
 }
 
 #endif /* SDL_VIDEO_RENDER_OGL_ES && !SDL_RENDER_DISABLED */
