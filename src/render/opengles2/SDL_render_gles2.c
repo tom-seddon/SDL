@@ -1929,9 +1929,6 @@ static int GLES2_UnbindTexture (SDL_Renderer * renderer, SDL_Texture *texture)
  *************************************************************************************************/
 static void GLES2_ResetState(SDL_Renderer *renderer);
 static int GLES2_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex *vertices, int num_vertices, int* indices, int num_indices, const SDL_Vector2f *translation);
-static int GLES2_EnableScissor(SDL_Renderer * renderer);
-static int GLES2_DisableScissor(SDL_Renderer * renderer);
-static int GLES2_ScissorRegion(SDL_Renderer * renderer, const SDL_Rect *region);
 
 #define MAX_SHORT_INDICES 1024
 
