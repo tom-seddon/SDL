@@ -69,8 +69,9 @@ typedef enum
                                                      acceleration */
     SDL_RENDERER_PRESENTVSYNC = 0x00000004,     /**< Present is synchronized
                                                      with the refresh rate */
-    SDL_RENDERER_TARGETTEXTURE = 0x00000008     /**< The renderer supports
+    SDL_RENDERER_TARGETTEXTURE = 0x00000008,    /**< The renderer supports
                                                      rendering to texture */
+    SDL_RENDERER_RENDERGEOMETRY = 0x00000010,   /**< The renderer supports SDL_RenderGeometry */
 } SDL_RendererFlags;
 
 /**

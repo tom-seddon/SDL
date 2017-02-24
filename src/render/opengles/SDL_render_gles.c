@@ -106,7 +106,7 @@ SDL_RenderDriver GLES_RenderDriver = {
     GLES_CreateRenderer,
     {
      "opengles",
-     (SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC),
+     (SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_RENDERGEOMETRY),
      1,
      {SDL_PIXELFORMAT_ABGR8888},
      0,
@@ -342,7 +342,7 @@ GLES_CreateRenderer(SDL_Window * window, Uint32 flags)
     renderer->GL_UnbindTexture = GLES_UnbindTexture;
     renderer->RenderGeometry = GLES_RenderGeometry;
     renderer->info = GLES_RenderDriver.info;
-    renderer->info.flags = SDL_RENDERER_ACCELERATED;
+    renderer->info.flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_RENDERGEOMETRY;
     renderer->driverdata = data;
     renderer->window = window;
 

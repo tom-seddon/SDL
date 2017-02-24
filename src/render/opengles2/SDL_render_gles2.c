@@ -60,7 +60,7 @@ SDL_RenderDriver GLES2_RenderDriver = {
     GLES2_CreateRenderer,
     {
         "opengles2",
-        (SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE),
+        (SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE | SDL_RENDERER_RENDERGEOMETRY),
         4,
         {
         SDL_PIXELFORMAT_ARGB8888,
@@ -2185,7 +2185,7 @@ GLES2_CreateRenderer(SDL_Window *window, Uint32 flags)
         goto error;
     }
     renderer->info = GLES2_RenderDriver.info;
-    renderer->info.flags = (SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE);
+    renderer->info.flags = (SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE | SDL_RENDERER_RENDERGEOMETRY);
     renderer->driverdata = data;
     renderer->window = window;
 

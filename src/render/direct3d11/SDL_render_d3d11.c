@@ -761,7 +761,8 @@ SDL_RenderDriver D3D11_RenderDriver = {
         (
             SDL_RENDERER_ACCELERATED |
             SDL_RENDERER_PRESENTVSYNC |
-            SDL_RENDERER_TARGETTEXTURE
+            SDL_RENDERER_TARGETTEXTURE |
+            SDL_RENDERER_RENDERGEOMETRY
         ),                          /* flags.  see SDL_RendererFlags */
         4,                          /* num_texture_formats */
         {                           /* texture_formats */
@@ -843,7 +844,7 @@ D3D11_CreateRenderer(SDL_Window * window, Uint32 flags)
     renderer->DestroyTexture = D3D11_DestroyTexture;
     renderer->DestroyRenderer = D3D11_DestroyRenderer;
     renderer->info = D3D11_RenderDriver.info;
-    renderer->info.flags = (SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE);
+    renderer->info.flags = (SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE | SDL_RENDERER_RENDERGEOMETRY);
     renderer->driverdata = data;
 
 #if WINAPI_FAMILY == WINAPI_FAMILY_PHONE_APP

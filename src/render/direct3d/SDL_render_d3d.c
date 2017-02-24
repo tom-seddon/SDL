@@ -168,7 +168,7 @@ SDL_RenderDriver D3D_RenderDriver = {
     D3D_CreateRenderer,
     {
      "direct3d",
-     (SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE),
+     (SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE | SDL_RENDERER_RENDERGEOMETRY),
      1,
      {SDL_PIXELFORMAT_ARGB8888},
      0,
@@ -578,7 +578,7 @@ D3D_CreateRenderer(SDL_Window * window, Uint32 flags)
     renderer->DestroyTexture = D3D_DestroyTexture;
     renderer->DestroyRenderer = D3D_DestroyRenderer;
     renderer->info = D3D_RenderDriver.info;
-    renderer->info.flags = (SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE);
+    renderer->info.flags = (SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE | SDL_RENDERER_RENDERGEOMETRY);
     renderer->driverdata = data;
 
     SDL_VERSION(&windowinfo.version);
