@@ -908,28 +908,7 @@ extern DECLSPEC int SDLCALL SDL_GL_UnbindTexture(SDL_Texture *texture);
  *
  *  \return 0 on success, or -1 if the operation is not supported
  */
-extern DECLSPEC int SDL_RenderGeometry(SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex *vertices, int num_vertices, int* indices, int num_indices, const SDL_Vector2f *translation);
-
-/**
- *  \brief Enable the Scissor Region
- *
- *  \return 0 on success, or -1 if the operation is not supported
- */
-extern DECLSPEC int SDL_EnableScissor(SDL_Renderer * renderer);
-
-/**
- *  \brief Disable the Scissor Region
- *
- *  \return 0 on success, or -1 if the operation is not supported
- */
-extern DECLSPEC int SDL_DisableScissor(SDL_Renderer * renderer);
-
-/**
- *  \brief Set the scissor region
- *
- *  \return 0 on success, or -1 if the operation is not supported or region is NULL
- */
-extern DECLSPEC int SDL_ScissorRegion(SDL_Renderer * renderer, const SDL_Rect *region);
+extern DECLSPEC int SDLCALL SDL_RenderGeometry(SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex *vertices, int num_vertices, int* indices, int num_indices, const SDL_Vector2f *translation);
 
 
 /* Ends C function definitions when using C++ */

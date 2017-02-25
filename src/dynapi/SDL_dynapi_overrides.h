@@ -625,3 +625,4 @@
 #define SDL_GameControllerNumMappings SDL_GameControllerNumMappings_REAL
 #define SDL_GameControllerMappingForIndex SDL_GameControllerMappingForIndex_REAL
 #define SDL_JoystickGetAxisInitialState SDL_JoystickGetAxisInitialState_REAL
+#define SDL_RenderGeometry SDL_RenderGeometry_REAL
