@@ -3048,6 +3048,8 @@ D3D11_RenderGeometry(SDL_Renderer *renderer, SDL_Texture *texture, SDL_Vertex *v
         D3D11_TextureData *textureData = texture->driverdata;
         ID3D11SamplerState *textureSampler;
 
+        D3D11_RenderSetBlendMode(renderer, texture->blendMode);
+
         textureSampler = D3D11_RenderGetSampler(renderer, texture);
         if (textureData->yuv) {
             ID3D11ShaderResourceView *shaderResources[] = {
