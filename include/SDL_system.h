@@ -73,6 +73,25 @@ extern DECLSPEC IDirect3DDevice9* SDLCALL SDL_RenderGetD3D9Device(SDL_Renderer *
  */
 extern DECLSPEC SDL_bool SDLCALL SDL_DXGIGetOutputInfo( int displayIndex, int *adapterIndex, int *outputIndex );
 
+/*
+   \brief Sets the D3D9 RenderGeometry half pixel offset flag.
+
+   When the RenderGeometry half pixel offset flag is set - which by default
+   it is - an offset of (-.5,-.5) will be applied to all geometry rendered
+   with SDL_RenderGeometry.
+*/
+extern DECLSPEC void SDLCALL SDL_RenderGeometryDirect3D9SetHalfPixelOffset(SDL_Renderer *renderer, SDL_bool flag);
+
+/*
+   \brief Gets the D3D9 RenderGeometry half pixel offset flag.
+
+   This retrieves the flag set by
+   SDL_RenderGeometryDirect3D9SetHalfPixelOffset.
+
+   If the renderer isn't a D3D9 one, returns false.
+*/
+extern DECLSPEC SDL_bool SDLCALL SDL_RenderGeometryDirect3D9SetHalfPixelOffset(SDL_Renderer *renderer);
+
 #endif /* __WIN32__ */
 
 

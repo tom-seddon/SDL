@@ -204,6 +204,7 @@ typedef struct
     void* d3dxDLL;
     LPDIRECT3DPIXELSHADER9 ps_yuv;
     IDirect3DVertexDeclaration9 *decl;
+    SDL_bool halfPixelOffset;
 } D3D_RenderData;
 
 typedef struct
@@ -411,6 +412,9 @@ D3D_InitRenderState(D3D_RenderData *data)
 
     /* Reset our current scale mode */
     SDL_memset(data->scaleMode, 0xFF, sizeof(data->scaleMode));
+
+    /* Half-pixel offset by default */
+    data->halfPixelOffset = SDL_TRUE;
 
     /* Start the render with beginScene */
     data->beginScene = SDL_TRUE;
@@ -1906,6 +1910,7 @@ D3D_RenderGeometry(SDL_Renderer *renderer, SDL_Texture *texture, SDL_Vertex *ver
     D3D_RenderData *data = renderer->driverdata;
     HRESULT result, drawResult;
     IDirect3DPixelShader9 *shader = NULL;
+    SDL_Vector2f t;
 
     if (numVertices <= 0 || (!indices && numVertices % 3 != 0)) {
         SDL_SetError("bad vertex count");
@@ -1970,8 +1975,21 @@ D3D_RenderGeometry(SDL_Renderer *renderer, SDL_Texture *texture, SDL_Vertex *ver
         }
     }
 
+    t.x = 0.f;
+    t.y = 0.f;
+
+    if (data->halfPixelOffset) {
+        t.x = -.5f;
+        t.y = -.5f;
+    }
+
     if (translation) {
-        Float4X4 translationMatrix = MatrixTranslation(translation->x, translation->y, 0.f);
+        t.x += translation->x;
+        t.y += translation->y;
+    }
+
+    if (t.x != 0.f || t.y != 0.f) {
+        Float4X4 translationMatrix = MatrixTranslation(t.x, t.y, 0.f);
 
         result = IDirect3DDevice9_SetTransform(data->device, D3DTS_VIEW, (D3DMATRIX *)&translationMatrix);
         if (FAILED(result)) {
@@ -2104,5 +2122,45 @@ SDL_RenderGetD3D9Device(SDL_Renderer * renderer)
     return device;
 }
 #endif /* __WIN32__ */
+
+#ifdef __WIN32__
+/* This function needs to always exist on Windows, for the Dynamic API. */
+void
+SDL_RenderGeometryDirect3D9SetHalfPixelOffset(SDL_Renderer *renderer, SDL_bool flag)
+{
+#if SDL_VIDEO_RENDER_D3D && !SDL_RENDER_DISABLED
+    D3D_RenderData *data = (D3D_RenderData *) renderer->driverdata;
+
+    /* Make sure that this is a D3D renderer */
+    if (renderer->DestroyRenderer != D3D_DestroyRenderer) {
+        return;
+    }
+
+    data->halfPixelOffset = flag;
+
+#endif
+}
+#endif
+
+#ifdef __WIN32__
+/* This function needs to always exist on Windows, for the Dynamic API. */
+SDL_bool
+SDL_RenderGeometryDirect3D9GetHalfPixelOffset(SDL_Renderer *renderer)
+{
+    SDL_bool flag = SDL_FALSE;
+    D3D_RenderData *data = (D3D_RenderData *) renderer->driverdata;
+
+#if SDL_VIDEO_RENDER_D3D && !SDL_RENDER_DISABLED
+    /* Make sure that this is a D3D renderer */
+    if (renderer->DestroyRenderer == D3D_DestroyRenderer) {
+        flag = data->halfPixelOffset;
+    }
+
+#endif
+
+    return flag;
+}
+#endif
+
 
 /* vi: set ts=4 sw=4 expandtab: */
