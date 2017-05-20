@@ -90,7 +90,7 @@ extern DECLSPEC void SDLCALL SDL_RenderGeometryDirect3D9SetHalfPixelOffset(SDL_R
 
    If the renderer isn't a D3D9 one, returns false.
 */
-extern DECLSPEC SDL_bool SDLCALL SDL_RenderGeometryDirect3D9SetHalfPixelOffset(SDL_Renderer *renderer);
+extern DECLSPEC SDL_bool SDLCALL SDL_RenderGeometryDirect3D9GetHalfPixelOffset(SDL_Renderer *renderer);
 
 #endif /* __WIN32__ */
 
