@@ -26,6 +26,7 @@
 
 #include "SDL_video.h"
 #include "SDL_mouse.h"
+#include "SDL_timer.h"
 #include "../SDL_sysvideo.h"
 #include "../SDL_pixels_c.h"
 
@@ -186,8 +187,8 @@ X11_CreateDevice(int devindex)
        }
      */
     data->display = X11_XOpenDisplay(display);
-#if defined(__osf__) && defined(SDL_VIDEO_DRIVER_X11_DYNAMIC)
-    /* On Tru64 if linking without -lX11, it fails and you get following message.
+#ifdef SDL_VIDEO_DRIVER_X11_DYNAMIC
+    /* On some systems if linking without -lX11, it fails and you get following message.
      * Xlib: connection to ":0.0" refused by server
      * Xlib: XDM authorization key matches an existing client!
      *
@@ -216,6 +217,7 @@ X11_CreateDevice(int devindex)
     /* Set the function pointers */
     device->VideoInit = X11_VideoInit;
     device->VideoQuit = X11_VideoQuit;
+    device->ResetTouch = X11_ResetTouch;
     device->GetDisplayModes = X11_GetDisplayModes;
     device->GetDisplayBounds = X11_GetDisplayBounds;
     device->GetDisplayUsableBounds = X11_GetDisplayUsableBounds;
@@ -448,6 +450,10 @@ X11_VideoQuit(_THIS)
 {
     SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 
+    if (data->clipboard_window) {
+        X11_XDestroyWindow(data->display, data->clipboard_window);
+    }
+
     SDL_free(data->classname);
 #ifdef X_HAVE_UTF8_STRING
     if (data->im) {
@@ -460,6 +466,8 @@ X11_VideoQuit(_THIS)
     X11_QuitMouse(_this);
     X11_QuitTouch(_this);
 
+/* !!! FIXME: other subsystems use D-Bus, so we shouldn't quit it here;
+       have SDL.c do this at a higher level, or add refcounting. */
 #if SDL_USE_LIBDBUS
     SDL_DBus_Quit();
 #endif

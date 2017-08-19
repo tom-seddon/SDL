@@ -28,7 +28,9 @@
 #include <emscripten/emscripten.h>
 #include <emscripten/html5.h>
 
+#if SDL_VIDEO_OPENGL_EGL
 #include <EGL/egl.h>
+#endif
 
 typedef struct SDL_WindowData
 {
@@ -47,6 +49,8 @@ typedef struct SDL_WindowData
 
     SDL_bool finger_touching;  /* for mapping touch events to mice */
     SDL_FingerID first_finger;
+
+    SDL_bool has_pointer_lock;
 } SDL_WindowData;
 
 #endif /* _SDL_emscriptenvideo_h */

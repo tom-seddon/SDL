@@ -105,11 +105,17 @@ static VideoBootStrap *bootstrap[] = {
 #if SDL_VIDEO_DRIVER_RPI
     &RPI_bootstrap,
 #endif 
+#if SDL_VIDEO_DRIVER_KMSDRM
+    &KMSDRM_bootstrap,
+#endif
 #if SDL_VIDEO_DRIVER_NACL
     &NACL_bootstrap,
 #endif
 #if SDL_VIDEO_DRIVER_EMSCRIPTEN
     &Emscripten_bootstrap,
+#endif
+#if SDL_VIDEO_DRIVER_QNX
+    &QNX_bootstrap,
 #endif
 #if SDL_VIDEO_DRIVER_DUMMY
     &DUMMY_bootstrap,
@@ -124,6 +130,7 @@ static SDL_VideoDevice *_this = NULL;
         SDL_UninitializedVideo(); \
         return retval; \
     } \
+    SDL_assert(window && window->magic == &_this->window_magic); \
     if (!window || window->magic != &_this->window_magic) { \
         SDL_SetError("Invalid window"); \
         return retval; \
@@ -135,6 +142,7 @@ static SDL_VideoDevice *_this = NULL;
         return retval; \
     } \
     SDL_assert(_this->displays != NULL); \
+    SDL_assert(displayIndex >= 0 && displayIndex < _this->num_displays); \
     if (displayIndex < 0 || displayIndex >= _this->num_displays) { \
         SDL_SetError("displayIndex must be in the range 0 - %d", \
                      _this->num_displays - 1); \
@@ -1321,7 +1329,7 @@ SDL_UpdateFullscreenMode(SDL_Window * window, SDL_bool fullscreen)
 }
 
 #define CREATE_FLAGS \
-    (SDL_WINDOW_OPENGL | SDL_WINDOW_BORDERLESS | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_SKIP_TASKBAR | SDL_WINDOW_POPUP_MENU | SDL_WINDOW_UTILITY | SDL_WINDOW_TOOLTIP)
+    (SDL_WINDOW_OPENGL | SDL_WINDOW_BORDERLESS | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_SKIP_TASKBAR | SDL_WINDOW_POPUP_MENU | SDL_WINDOW_UTILITY | SDL_WINDOW_TOOLTIP | SDL_WINDOW_VULKAN )
 
 static void
 SDL_FinishWindowCreation(SDL_Window *window, Uint32 flags)
@@ -1598,6 +1606,12 @@ SDL_RecreateWindow(SDL_Window * window, Uint32 flags)
     SDL_FinishWindowCreation(window, flags);
 
     return 0;
+}
+
+SDL_bool
+SDL_HasWindows(void)
+{
+    return (_this && _this->windows != NULL);
 }
 
 Uint32
@@ -1934,30 +1948,6 @@ SDL_GetWindowSize(SDL_Window * window, int *w, int *h)
     }
 }
 
-void
-SDL_SetWindowMinimumSize(SDL_Window * window, int min_w, int min_h)
-{
-    CHECK_WINDOW_MAGIC(window,);
-    if (min_w <= 0) {
-        SDL_InvalidParamError("min_w");
-        return;
-    }
-    if (min_h <= 0) {
-        SDL_InvalidParamError("min_h");
-        return;
-    }
-
-    if (!(window->flags & SDL_WINDOW_FULLSCREEN)) {
-        window->min_w = min_w;
-        window->min_h = min_h;
-        if (_this->SetWindowMinimumSize) {
-            _this->SetWindowMinimumSize(_this, window);
-        }
-        /* Ensure that window is not smaller than minimal size */
-        SDL_SetWindowSize(window, SDL_max(window->w, window->min_w), SDL_max(window->h, window->min_h));
-    }
-}
-
 int
 SDL_GetWindowBordersSize(SDL_Window * window, int *top, int *left, int *bottom, int *right)
 {
@@ -1978,6 +1968,37 @@ SDL_GetWindowBordersSize(SDL_Window * window, int *top, int *left, int *bottom, 
     }
 
     return _this->GetWindowBordersSize(_this, window, top, left, bottom, right);
+}
+
+void
+SDL_SetWindowMinimumSize(SDL_Window * window, int min_w, int min_h)
+{
+    CHECK_WINDOW_MAGIC(window,);
+    if (min_w <= 0) {
+        SDL_InvalidParamError("min_w");
+        return;
+    }
+    if (min_h <= 0) {
+        SDL_InvalidParamError("min_h");
+        return;
+    }
+
+    if ((window->max_w && min_w >= window->max_w) ||
+        (window->max_h && min_h >= window->max_h)) {
+        SDL_SetError("SDL_SetWindowMinimumSize(): Tried to set minimum size larger than maximum size");
+        return;
+    }
+
+    window->min_w = min_w;
+    window->min_h = min_h;
+
+    if (!(window->flags & SDL_WINDOW_FULLSCREEN)) {
+        if (_this->SetWindowMinimumSize) {
+            _this->SetWindowMinimumSize(_this, window);
+        }
+        /* Ensure that window is not smaller than minimal size */
+        SDL_SetWindowSize(window, SDL_max(window->w, window->min_w), SDL_max(window->h, window->min_h));
+    }
 }
 
 void
@@ -2005,9 +2026,15 @@ SDL_SetWindowMaximumSize(SDL_Window * window, int max_w, int max_h)
         return;
     }
 
+    if (max_w <= window->min_w || max_h <= window->min_h) {
+        SDL_SetError("SDL_SetWindowMaximumSize(): Tried to set maximum size smaller than minimum size");
+        return;
+    }
+
+    window->max_w = max_w;
+    window->max_h = max_h;
+
     if (!(window->flags & SDL_WINDOW_FULLSCREEN)) {
-        window->max_w = max_w;
-        window->max_h = max_h;
         if (_this->SetWindowMaximumSize) {
             _this->SetWindowMaximumSize(_this, window);
         }
@@ -2796,11 +2823,13 @@ SDL_GL_UnloadLibrary(void)
     }
 }
 
+#if SDL_VIDEO_OPENGL || SDL_VIDEO_OPENGL_ES || SDL_VIDEO_OPENGL_ES2
 static SDL_INLINE SDL_bool
 isAtLeastGL3(const char *verstr)
 {
     return (verstr && (SDL_atoi(verstr) >= 3));
 }
+#endif
 
 SDL_bool
 SDL_GL_ExtensionSupported(const char *extension)
@@ -2874,7 +2903,7 @@ SDL_GL_ExtensionSupported(const char *extension)
             break;
 
         terminator = where + SDL_strlen(extension);
-        if (where == start || *(where - 1) == ' ')
+        if (where == extensions || *(where - 1) == ' ')
             if (*terminator == ' ' || *terminator == '\0')
                 return SDL_TRUE;
 
@@ -2895,6 +2924,8 @@ SDL_GL_ExtensionSupported(const char *extension)
 void
 SDL_GL_DeduceMaxSupportedESProfile(int* major, int* minor)
 {
+/* This function breaks games because OpenGL functions are being called before a context is current - see bug 3725 */
+#if 0
 #if SDL_VIDEO_OPENGL || SDL_VIDEO_OPENGL_ES || SDL_VIDEO_OPENGL_ES2
 	/* XXX This is fragile; it will break in the event of release of
 	 * new versions of OpenGL ES.
@@ -2913,6 +2944,10 @@ SDL_GL_DeduceMaxSupportedESProfile(int* major, int* minor)
         *minor = 0;
     }
 #endif
+#else
+        *major = 2;
+        *minor = 0;
+#endif /* 0 */
 }
 
 void
@@ -3095,8 +3130,16 @@ SDL_GL_GetAttribute(SDL_GLattr attr, int *value)
     GLenum attachmentattrib = 0;
 #endif
 
+    if (!value) {
+        return SDL_InvalidParamError("value");
+    }
+
     /* Clear value in any case */
     *value = 0;
+
+    if (!_this) {
+        return SDL_UninitializedVideo();
+    }
 
     switch (attr) {
     case SDL_GL_RED_SIZE:
@@ -3267,7 +3310,7 @@ SDL_GL_GetAttribute(SDL_GLattr attr, int *value)
 #if SDL_VIDEO_OPENGL
     glGetStringFunc = SDL_GL_GetProcAddress("glGetString");
     if (!glGetStringFunc) {
-        return SDL_SetError("Failed getting OpenGL glGetString entry point");
+        return -1;
     }
 
     if (attachmentattrib && isAtLeastGL3((const char *) glGetStringFunc(GL_VERSION))) {
@@ -3276,7 +3319,7 @@ SDL_GL_GetAttribute(SDL_GLattr attr, int *value)
         if (glGetFramebufferAttachmentParameterivFunc) {
             glGetFramebufferAttachmentParameterivFunc(GL_FRAMEBUFFER, attachment, attachmentattrib, (GLint *) value);
         } else {
-            return SDL_SetError("Failed getting OpenGL glGetFramebufferAttachmentParameteriv entry point");
+            return -1;
         }
     } else
 #endif
@@ -3286,13 +3329,13 @@ SDL_GL_GetAttribute(SDL_GLattr attr, int *value)
         if (glGetIntegervFunc) {
             glGetIntegervFunc(attrib, (GLint *) value);
         } else {
-            return SDL_SetError("Failed getting OpenGL glGetIntegerv entry point");
+            return -1;
         }
     }
 
     glGetErrorFunc = SDL_GL_GetProcAddress("glGetError");
     if (!glGetErrorFunc) {
-        return SDL_SetError("Failed getting OpenGL glGetError entry point");
+        return -1;
     }
 
     error = glGetErrorFunc();
@@ -3840,6 +3883,54 @@ SDL_ComputeDiagonalDPI(int hpix, int vpix, float hinches, float vinches)
 		
 	return (float)(SDL_sqrt((double)hpix * (double)hpix + (double)vpix * (double)vpix) /
 				   SDL_sqrt((double)den2));
+}
+
+/*
+ * Functions used by iOS application delegates
+ */
+void SDL_OnApplicationWillTerminate(void)
+{
+    SDL_SendAppEvent(SDL_APP_TERMINATING);
+}
+
+void SDL_OnApplicationDidReceiveMemoryWarning(void)
+{
+    SDL_SendAppEvent(SDL_APP_LOWMEMORY);
+}
+
+void SDL_OnApplicationWillResignActive(void)
+{
+    if (_this) {
+        SDL_Window *window;
+        for (window = _this->windows; window != NULL; window = window->next) {
+            SDL_SendWindowEvent(window, SDL_WINDOWEVENT_FOCUS_LOST, 0, 0);
+            SDL_SendWindowEvent(window, SDL_WINDOWEVENT_MINIMIZED, 0, 0);
+        }
+    }
+    SDL_SendAppEvent(SDL_APP_WILLENTERBACKGROUND);
+}
+
+void SDL_OnApplicationDidEnterBackground(void)
+{
+    SDL_SendAppEvent(SDL_APP_DIDENTERBACKGROUND);
+}
+
+void SDL_OnApplicationWillEnterForeground(void)
+{
+    SDL_SendAppEvent(SDL_APP_WILLENTERFOREGROUND);
+}
+
+void SDL_OnApplicationDidBecomeActive(void)
+{
+    SDL_SendAppEvent(SDL_APP_DIDENTERFOREGROUND);
+
+    if (_this) {
+        SDL_Window *window;
+        for (window = _this->windows; window != NULL; window = window->next) {
+            SDL_SendWindowEvent(window, SDL_WINDOWEVENT_FOCUS_GAINED, 0, 0);
+            SDL_SendWindowEvent(window, SDL_WINDOWEVENT_RESTORED, 0, 0);
+        }
+    }
 }
 
 /* vi: set ts=4 sw=4 expandtab: */

@@ -60,12 +60,6 @@ SDL_DYNAPI_PROC(SDL_RWops*,SDL_RWFromFP,(FILE *a, SDL_bool b),(a,b),return)
 SDL_DYNAPI_PROC(SDL_RWops*,SDL_RWFromFP,(void *a, SDL_bool b),(a,b),return)
 #endif
 
-/* so annoying. */
-#if defined(__thumb__) && (defined(__ARM_ARCH_6__) || defined(__ARM_ARCH_6J__) || defined(__ARM_ARCH_6K__) || defined(__ARM_ARCH_6T2__) || defined(__ARM_ARCH_6Z__) || defined(__ARM_ARCH_6ZK__))
-SDL_DYNAPI_PROC(void,SDL_MemoryBarrierRelease,(void),(),)
-SDL_DYNAPI_PROC(void,SDL_MemoryBarrierAcquire,(void),(),)
-#endif
-
 #ifdef __WIN32__
 SDL_DYNAPI_PROC(int,SDL_RegisterApp,(char *a, Uint32 b, void *c),(a,b,c),return)
 SDL_DYNAPI_PROC(void,SDL_UnregisterApp,(void),(),)
@@ -658,3 +652,15 @@ SDL_DYNAPI_PROC(int,SDL_GameControllerNumMappings,(void),(),return)
 SDL_DYNAPI_PROC(char*,SDL_GameControllerMappingForIndex,(int a),(a),return)
 SDL_DYNAPI_PROC(SDL_bool,SDL_JoystickGetAxisInitialState,(SDL_Joystick *a, int b, Sint16 *c),(a,b,c),return)
 SDL_DYNAPI_PROC(int,SDL_RenderGeometry,(SDL_Renderer *a, SDL_Texture *b, SDL_Vertex *c, int d, int *e, int f, const SDL_Vector2f *g),(a,b,c,d,e,f,g),return)
+SDL_DYNAPI_PROC(SDL_JoystickType,SDL_JoystickGetDeviceType,(int a),(a),return)
+SDL_DYNAPI_PROC(SDL_JoystickType,SDL_JoystickGetType,(SDL_Joystick *a),(a),return)
+SDL_DYNAPI_PROC(void,SDL_MemoryBarrierReleaseFunction,(void),(),)
+SDL_DYNAPI_PROC(void,SDL_MemoryBarrierAcquireFunction,(void),(),)
+SDL_DYNAPI_PROC(SDL_JoystickID,SDL_JoystickGetDeviceInstanceID,(int a),(a),return)
+SDL_DYNAPI_PROC(size_t,SDL_utf8strlen,(const char *a),(a),return)
+SDL_DYNAPI_PROC(void*,SDL_LoadFile_RW,(SDL_RWops *a, size_t *b, int c),(a,b,c),return)
+SDL_DYNAPI_PROC(int,SDL_wcscmp,(const wchar_t *a, const wchar_t *b),(a,b),return)
+SDL_DYNAPI_PROC(SDL_BlendMode,SDL_ComposeCustomBlendMode,(SDL_BlendFactor a, SDL_BlendFactor b, SDL_BlendOperation c, SDL_BlendFactor d, SDL_BlendFactor e, SDL_BlendOperation f),(a,b,c,d,e,f),return)
+SDL_DYNAPI_PROC(SDL_Surface*,SDL_DuplicateSurface,(SDL_Surface *a),(a),return)
+SDL_DYNAPI_PROC(void,SDL_RenderGeometryDirect3D9SetHalfPixelOffset,(SDL_Renderer *a, SDL_bool b),(a,b),)
+SDL_DYNAPI_PROC(SDL_bool,SDL_RenderGeometryDirect3D9GetHalfPixelOffset,(SDL_Renderer *a),(a),return)

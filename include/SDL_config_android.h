@@ -21,6 +21,7 @@
 
 #ifndef SDL_config_android_h_
 #define SDL_config_android_h_
+#define SDL_config_h_
 
 #include "SDL_platform.h"
 
@@ -117,7 +118,7 @@
 
 /* Enable various input drivers */
 #define SDL_JOYSTICK_ANDROID    1
-#define SDL_HAPTIC_DUMMY    1
+#define SDL_HAPTIC_ANDROID    1
 
 /* Enable various shared object loading systems */
 #define SDL_LOADSO_DLOPEN   1

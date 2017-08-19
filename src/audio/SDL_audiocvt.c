@@ -22,6 +22,7 @@
 
 /* Functions for audio drivers to perform runtime conversion of audio format */
 
+#include "SDL.h"
 #include "SDL_audio.h"
 #include "SDL_audio_c.h"
 
@@ -439,7 +440,10 @@ SDL_ResampleCVT_si16_c2(SDL_AudioCVT *cvt, SDL_AudioFormat format)
     const int srclen = cvt->len_cvt;
     Sint16 *dst = (Sint16 *) cvt->buf;
     const int dstlen = (cvt->len * cvt->len_mult);
-    Sint16 state[2] = { src[0], src[1] };
+    Sint16 state[2];
+
+    state[0] = src[0];
+    state[1] = src[1];
 
     SDL_assert(format == AUDIO_S16SYS);
 
@@ -511,6 +515,19 @@ SDL_Convert_Byteswap(SDL_AudioCVT *cvt, SDL_AudioFormat format)
     }
 }
 
+static int
+SDL_AddAudioCVTFilter(SDL_AudioCVT *cvt, const SDL_AudioFilter filter)
+{
+    if (cvt->filter_index >= SDL_AUDIOCVT_MAX_FILTERS) {
+        return SDL_SetError("Too many filters needed for conversion, exceeded maximum of %d", SDL_AUDIOCVT_MAX_FILTERS);
+    }
+    if (filter == NULL) {
+        return SDL_SetError("Audio filter pointer is NULL");
+    }
+    cvt->filters[cvt->filter_index++] = filter;
+    cvt->filters[cvt->filter_index] = NULL; /* Moving terminator */
+    return 0;
+}
 
 static int
 SDL_BuildAudioTypeCVTToFloat(SDL_AudioCVT *cvt, const SDL_AudioFormat src_fmt)
@@ -518,7 +535,9 @@ SDL_BuildAudioTypeCVTToFloat(SDL_AudioCVT *cvt, const SDL_AudioFormat src_fmt)
     int retval = 0;  /* 0 == no conversion necessary. */
 
     if ((SDL_AUDIO_ISBIGENDIAN(src_fmt) != 0) == (SDL_BYTEORDER == SDL_LIL_ENDIAN)) {
-        cvt->filters[cvt->filter_index++] = SDL_Convert_Byteswap;
+        if (SDL_AddAudioCVTFilter(cvt, SDL_Convert_Byteswap) < 0) {
+            return -1;
+        }
         retval = 1;  /* added a converter. */
     }
 
@@ -537,10 +556,12 @@ SDL_BuildAudioTypeCVTToFloat(SDL_AudioCVT *cvt, const SDL_AudioFormat src_fmt)
         }
 
         if (!filter) {
-            return SDL_SetError("No conversion available for these formats");
+            return SDL_SetError("No conversion from source format to float available");
         }
 
-        cvt->filters[cvt->filter_index++] = filter;
+        if (SDL_AddAudioCVTFilter(cvt, filter) < 0) {
+            return -1;
+        }
         if (src_bitsize < dst_bitsize) {
             const int mult = (dst_bitsize / src_bitsize);
             cvt->len_mult *= mult;
@@ -574,10 +595,12 @@ SDL_BuildAudioTypeCVTFromFloat(SDL_AudioCVT *cvt, const SDL_AudioFormat dst_fmt)
         }
 
         if (!filter) {
-            return SDL_SetError("No conversion available for these formats");
+            return SDL_SetError("No conversion from float to destination format available");
         }
 
-        cvt->filters[cvt->filter_index++] = filter;
+        if (SDL_AddAudioCVTFilter(cvt, filter) < 0) {
+            return -1;
+        }
         if (src_bitsize < dst_bitsize) {
             const int mult = (dst_bitsize / src_bitsize);
             cvt->len_mult *= mult;
@@ -589,7 +612,9 @@ SDL_BuildAudioTypeCVTFromFloat(SDL_AudioCVT *cvt, const SDL_AudioFormat dst_fmt)
     }
 
     if ((SDL_AUDIO_ISBIGENDIAN(dst_fmt) != 0) == (SDL_BYTEORDER == SDL_LIL_ENDIAN)) {
-        cvt->filters[cvt->filter_index++] = SDL_Convert_Byteswap;
+        if (SDL_AddAudioCVTFilter(cvt, SDL_Convert_Byteswap) < 0) {
+            return -1;
+        }
         retval = 1;  /* added a converter. */
     }
 
@@ -662,7 +687,9 @@ SDL_BuildAudioResampleCVT(SDL_AudioCVT * cvt, const int dst_channels,
     }
 
     /* Update (cvt) with filter details... */
-    cvt->filters[cvt->filter_index++] = filter;
+    if (SDL_AddAudioCVTFilter(cvt, filter) < 0) {
+        return -1;
+    }
     if (src_rate < dst_rate) {
         const double mult = ((double) dst_rate) / ((double) src_rate);
         cvt->len_mult *= (int) SDL_ceil(mult);
@@ -674,10 +701,51 @@ SDL_BuildAudioResampleCVT(SDL_AudioCVT * cvt, const int dst_channels,
     return 1;               /* added a converter. */
 }
 
+static SDL_bool
+SDL_SupportedAudioFormat(const SDL_AudioFormat fmt)
+{
+    switch (fmt) {
+        case AUDIO_U8:
+        case AUDIO_S8:
+        case AUDIO_U16LSB:
+        case AUDIO_S16LSB:
+        case AUDIO_U16MSB:
+        case AUDIO_S16MSB:
+        case AUDIO_S32LSB:
+        case AUDIO_S32MSB:
+        case AUDIO_F32LSB:
+        case AUDIO_F32MSB:
+            return SDL_TRUE;  /* supported. */
+
+        default:
+            break;
+    }
+
+    return SDL_FALSE;  /* unsupported. */
+}
+
+static SDL_bool
+SDL_SupportedChannelCount(const int channels)
+{
+    switch (channels) {
+        case 1:  /* mono */
+        case 2:  /* stereo */
+        case 4:  /* quad */
+        case 6:  /* 5.1 */
+            return SDL_TRUE;  /* supported. */
+
+        case 8:  /* !!! FIXME: 7.1 */
+        default:
+            break;
+    }
+
+    return SDL_FALSE;  /* unsupported. */
+}
+
 
 /* Creates a set of audio filters to convert from one format to another.
-   Returns -1 if the format conversion is not supported, 0 if there's
-   no conversion needed, or 1 if the audio filter is set up.
+   Returns 0 if no conversion is needed, 1 if the audio filter is set up,
+   or -1 if an error like invalid parameter, unsupported format, etc. occurred.
 */
 
 int
@@ -690,24 +758,28 @@ SDL_BuildAudioCVT(SDL_AudioCVT * cvt,
         return SDL_InvalidParamError("cvt");
     }
 
+    /* Conversions from and to float require the audio subsystem to be initialized */
+    if (!SDL_WasInit(SDL_INIT_AUDIO)) {
+        return SDL_SetError("Audio subsystem has not been initialized");
+    }
+
     /* Make sure we zero out the audio conversion before error checking */
     SDL_zerop(cvt);
 
-    /* there are no unsigned types over 16 bits, so catch this up front. */
-    if ((SDL_AUDIO_BITSIZE(src_fmt) > 16) && (!SDL_AUDIO_ISSIGNED(src_fmt))) {
+    if (!SDL_SupportedAudioFormat(src_fmt)) {
         return SDL_SetError("Invalid source format");
-    }
-    if ((SDL_AUDIO_BITSIZE(dst_fmt) > 16) && (!SDL_AUDIO_ISSIGNED(dst_fmt))) {
+    } else if (!SDL_SupportedAudioFormat(dst_fmt)) {
         return SDL_SetError("Invalid destination format");
+    } else if (!SDL_SupportedChannelCount(src_channels)) {
+        return SDL_SetError("Invalid source channels");
+    } else if (!SDL_SupportedChannelCount(dst_channels)) {
+        return SDL_SetError("Invalid destination channels");
+    } else if (src_rate == 0) {
+        return SDL_SetError("Source rate is zero");
+    } else if (dst_rate == 0) {
+        return SDL_SetError("Destination rate is zero");
     }
 
-    /* prevent possible divisions by zero, etc. */
-    if ((src_channels == 0) || (dst_channels == 0)) {
-        return SDL_SetError("Source or destination channels is zero");
-    }
-    if ((src_rate == 0) || (dst_rate == 0)) {
-        return SDL_SetError("Source or destination rate is zero");
-    }
 #if DEBUG_CONVERT
     printf("Build format %04x->%04x, channels %u->%u, rate %d->%d\n",
            src_fmt, dst_fmt, src_channels, dst_channels, src_rate, dst_rate);
@@ -736,7 +808,9 @@ SDL_BuildAudioCVT(SDL_AudioCVT * cvt,
        format as well. */
     if ((src_channels == 2) && (dst_channels == 2) && (src_fmt == AUDIO_S16SYS) && (dst_fmt == AUDIO_S16SYS) && (src_rate != dst_rate)) {
         cvt->needed = 1;
-        cvt->filters[cvt->filter_index++] = SDL_ResampleCVT_si16_c2;
+        if (SDL_AddAudioCVTFilter(cvt, SDL_ResampleCVT_si16_c2) < 0) {
+            return -1;
+        }
         if (src_rate < dst_rate) {
             const double mult = ((double) dst_rate) / ((double) src_rate);
             cvt->len_mult *= (int) SDL_ceil(mult);
@@ -769,7 +843,9 @@ SDL_BuildAudioCVT(SDL_AudioCVT * cvt,
 
         /* just a byteswap needed? */
         if ((src_fmt & ~SDL_AUDIO_MASK_ENDIAN) == (dst_fmt & ~SDL_AUDIO_MASK_ENDIAN)) {
-            cvt->filters[cvt->filter_index++] = SDL_Convert_Byteswap;
+            if (SDL_AddAudioCVTFilter(cvt, SDL_Convert_Byteswap) < 0) {
+                return -1;
+            }
             cvt->needed = 1;
             return 1;
         }
@@ -783,36 +859,48 @@ SDL_BuildAudioCVT(SDL_AudioCVT * cvt,
     /* Channel conversion */
     if (src_channels != dst_channels) {
         if ((src_channels == 1) && (dst_channels > 1)) {
-            cvt->filters[cvt->filter_index++] = SDL_ConvertMonoToStereo;
+            if (SDL_AddAudioCVTFilter(cvt, SDL_ConvertMonoToStereo) < 0) {
+                return -1;
+            }
             cvt->len_mult *= 2;
             src_channels = 2;
             cvt->len_ratio *= 2;
         }
         if ((src_channels == 2) && (dst_channels == 6)) {
-            cvt->filters[cvt->filter_index++] = SDL_ConvertStereoTo51;
+            if (SDL_AddAudioCVTFilter(cvt, SDL_ConvertStereoTo51) < 0) {
+                return -1;
+            }
             src_channels = 6;
             cvt->len_mult *= 3;
             cvt->len_ratio *= 3;
         }
         if ((src_channels == 2) && (dst_channels == 4)) {
-            cvt->filters[cvt->filter_index++] = SDL_ConvertStereoToQuad;
+            if (SDL_AddAudioCVTFilter(cvt, SDL_ConvertStereoToQuad) < 0) {
+                return -1;
+            }
             src_channels = 4;
             cvt->len_mult *= 2;
             cvt->len_ratio *= 2;
         }
         while ((src_channels * 2) <= dst_channels) {
-            cvt->filters[cvt->filter_index++] = SDL_ConvertMonoToStereo;
+            if (SDL_AddAudioCVTFilter(cvt, SDL_ConvertMonoToStereo) < 0) {
+                return -1;
+            }
             cvt->len_mult *= 2;
             src_channels *= 2;
             cvt->len_ratio *= 2;
         }
         if ((src_channels == 6) && (dst_channels <= 2)) {
-            cvt->filters[cvt->filter_index++] = SDL_Convert51ToStereo;
+            if (SDL_AddAudioCVTFilter(cvt, SDL_Convert51ToStereo) < 0) {
+                return -1;
+            }
             src_channels = 2;
             cvt->len_ratio /= 3;
         }
         if ((src_channels == 6) && (dst_channels == 4)) {
-            cvt->filters[cvt->filter_index++] = SDL_Convert51ToQuad;
+            if (SDL_AddAudioCVTFilter(cvt, SDL_Convert51ToQuad) < 0) {
+                return -1;
+            }
             src_channels = 4;
             cvt->len_ratio /= 2;
         }
@@ -834,7 +922,9 @@ SDL_BuildAudioCVT(SDL_AudioCVT * cvt,
                 filter = SDL_ConvertStereoToMono;
             }
 
-            cvt->filters[cvt->filter_index++] = filter;
+            if (SDL_AddAudioCVTFilter(cvt, filter) < 0) {
+                return -1;
+            }
 
             src_channels /= 2;
             cvt->len_ratio /= 2;
@@ -1035,9 +1125,8 @@ SDL_ResampleAudioStream_si16_c2(SDL_AudioStream *stream, const void *_inbuf, con
     const Sint16 *inbuf = (const Sint16 *) _inbuf;
     Sint16 *outbuf = (Sint16 *) _outbuf;
     SDL_AudioStreamResamplerState *state = (SDL_AudioStreamResamplerState*)stream->resampler_state;
-    const int chans = (int)stream->pre_resample_channels;
 
-    SDL_assert(chans <= SDL_arraysize(state->resampler_state.si16));
+    SDL_assert(((int)stream->pre_resample_channels) <= SDL_arraysize(state->resampler_state.si16));
 
     if (!state->resampler_seeded) {
         state->resampler_state.si16[0] = inbuf[0];
@@ -1087,11 +1176,11 @@ SDL_NewAudioStream(const SDL_AudioFormat src_format,
        the resampled data (!!! FIXME: decide if that works in practice, though!). */
     pre_resample_channels = SDL_min(src_channels, dst_channels);
 
-    retval->src_sample_frame_size = SDL_AUDIO_BITSIZE(src_format) * src_channels;
+    retval->src_sample_frame_size = (SDL_AUDIO_BITSIZE(src_format) / 8) * src_channels;
     retval->src_format = src_format;
     retval->src_channels = src_channels;
     retval->src_rate = src_rate;
-    retval->dst_sample_frame_size = SDL_AUDIO_BITSIZE(dst_format) * dst_channels;
+    retval->dst_sample_frame_size = (SDL_AUDIO_BITSIZE(dst_format) / 8) * dst_channels;
     retval->dst_format = dst_format;
     retval->dst_channels = dst_channels;
     retval->dst_rate = dst_rate;
@@ -1222,7 +1311,7 @@ SDL_AudioStreamPut(SDL_AudioStream *stream, const void *buf, const Uint32 _bufle
             return -1;  /* probably out of memory. */
         }
         if (buf == origbuf) {  /* copy if we haven't before. */
-            SDL_memcpy(workbuf, buf, buflen);
+            SDL_memcpy(workbuf, origbuf, buflen);
         }
         stream->cvt_after_resampling.buf = workbuf;
         stream->cvt_after_resampling.len = buflen;

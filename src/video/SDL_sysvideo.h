@@ -163,6 +163,11 @@ struct SDL_VideoDevice
      */
     void (*VideoQuit) (_THIS);
 
+    /*
+     * Reinitialize the touch devices -- called if an unknown touch ID occurs.
+     */
+    void (*ResetTouch) (_THIS);
+
     /* * * */
     /*
      * Display functions
@@ -367,57 +372,26 @@ typedef struct VideoBootStrap
     SDL_VideoDevice *(*create) (int devindex);
 } VideoBootStrap;
 
-#if SDL_VIDEO_DRIVER_COCOA
+/* Not all of these are available in a given build. Use #ifdefs, etc. */
 extern VideoBootStrap COCOA_bootstrap;
-#endif
-#if SDL_VIDEO_DRIVER_X11
 extern VideoBootStrap X11_bootstrap;
-#endif
-#if SDL_VIDEO_DRIVER_MIR
 extern VideoBootStrap MIR_bootstrap;
-#endif
-#if SDL_VIDEO_DRIVER_DIRECTFB
 extern VideoBootStrap DirectFB_bootstrap;
-#endif
-#if SDL_VIDEO_DRIVER_WINDOWS
 extern VideoBootStrap WINDOWS_bootstrap;
-#endif
-#if SDL_VIDEO_DRIVER_WINRT
 extern VideoBootStrap WINRT_bootstrap;
-#endif
-#if SDL_VIDEO_DRIVER_HAIKU
 extern VideoBootStrap HAIKU_bootstrap;
-#endif
-#if SDL_VIDEO_DRIVER_PANDORA
 extern VideoBootStrap PND_bootstrap;
-#endif
-#if SDL_VIDEO_DRIVER_UIKIT
 extern VideoBootStrap UIKIT_bootstrap;
-#endif
-#if SDL_VIDEO_DRIVER_ANDROID
 extern VideoBootStrap Android_bootstrap;
-#endif
-#if SDL_VIDEO_DRIVER_PSP
 extern VideoBootStrap PSP_bootstrap;
-#endif
-#if SDL_VIDEO_DRIVER_RPI
 extern VideoBootStrap RPI_bootstrap;
-#endif
-#if SDL_VIDEO_DRIVER_DUMMY
+extern VideoBootStrap KMSDRM_bootstrap;
 extern VideoBootStrap DUMMY_bootstrap;
-#endif
-#if SDL_VIDEO_DRIVER_WAYLAND
 extern VideoBootStrap Wayland_bootstrap;
-#endif
-#if SDL_VIDEO_DRIVER_NACL
 extern VideoBootStrap NACL_bootstrap;
-#endif
-#if SDL_VIDEO_DRIVER_VIVANTE
 extern VideoBootStrap VIVANTE_bootstrap;
-#endif
-#if SDL_VIDEO_DRIVER_EMSCRIPTEN
 extern VideoBootStrap Emscripten_bootstrap;
-#endif
+extern VideoBootStrap QNX_bootstrap;
 
 extern SDL_VideoDevice *SDL_GetVideoDevice(void);
 extern int SDL_AddBasicVideoDisplay(const SDL_DisplayMode * desktop_mode);
@@ -429,6 +403,7 @@ extern void *SDL_GetDisplayDriverData( int displayIndex );
 extern void SDL_GL_DeduceMaxSupportedESProfile(int* major, int* minor);
 
 extern int SDL_RecreateWindow(SDL_Window * window, Uint32 flags);
+extern SDL_bool SDL_HasWindows(void);
 
 extern void SDL_OnWindowShown(SDL_Window * window);
 extern void SDL_OnWindowHidden(SDL_Window * window);
@@ -445,6 +420,13 @@ extern SDL_Window * SDL_GetFocusWindow(void);
 extern SDL_bool SDL_ShouldAllowTopmost(void);
 
 extern float SDL_ComputeDiagonalDPI(int hpix, int vpix, float hinches, float vinches);
+
+extern void SDL_OnApplicationWillTerminate(void);
+extern void SDL_OnApplicationDidReceiveMemoryWarning(void);
+extern void SDL_OnApplicationWillResignActive(void);
+extern void SDL_OnApplicationDidEnterBackground(void);
+extern void SDL_OnApplicationWillEnterForeground(void);
+extern void SDL_OnApplicationDidBecomeActive(void);
 
 #endif /* SDL_sysvideo_h_ */
 
