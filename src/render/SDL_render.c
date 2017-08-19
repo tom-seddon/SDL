@@ -2093,7 +2093,7 @@ int SDL_GL_UnbindTexture(SDL_Texture *texture)
 }
 
 
-int SDL_RenderGeometry(SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex *vertices, int num_vertices, int* indices, int num_indices, const SDL_Vector2f *translation)
+int SDL_RenderGeometry(SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex *vertices, Uint16 num_vertices, const Uint16* indices, int num_indices, const SDL_Vector2f *translation)
 {
     CHECK_RENDERER_MAGIC(renderer, -1);
 

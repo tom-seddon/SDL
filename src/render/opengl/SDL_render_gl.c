@@ -1682,8 +1682,8 @@ GL_UnbindTexture (SDL_Renderer * renderer, SDL_Texture *texture)
     return 0;
 }
 
-static int GL_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex *vertices, int num_vertices, int* indices, int num_indices, const SDL_Vector2f *translation) {
-    int i;
+static int GL_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex *vertices, Uint16 num_vertices, const Uint16* indices, int num_indices, const SDL_Vector2f *translation) {
+    Uint16 i;
     GL_RenderData *data = (GL_RenderData *) renderer->driverdata;
     GL_TextureData *texturedata = NULL;
 
@@ -1749,7 +1749,7 @@ static int GL_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, SDL
     data->glTexCoordPointer(2, GL_FLOAT, sizeof(SDL_Vertex), &vertices[0].tex_coord);
 
     if (indices) {
-        data->glDrawElements(GL_TRIANGLES, num_indices, GL_UNSIGNED_INT, indices);
+        data->glDrawElements(GL_TRIANGLES, num_indices, GL_UNSIGNED_SHORT, indices);
     }
     else {
         data->glDrawArrays(GL_TRIANGLES, 0, num_vertices);

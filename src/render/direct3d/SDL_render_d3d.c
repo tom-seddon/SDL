@@ -1925,8 +1925,8 @@ D3D_RenderReadPixels(SDL_Renderer * renderer, const SDL_Rect * rect,
 }
 
 static int
-D3D_RenderGeometry(SDL_Renderer *renderer, SDL_Texture *texture, SDL_Vertex *vertices, int numVertices,
-                   int *indices, int numIndices, const SDL_Vector2f *translation)
+D3D_RenderGeometry(SDL_Renderer *renderer, SDL_Texture *texture, const SDL_Vertex *vertices, Uint16 numVertices,
+                   const Uint16 *indices, int numIndices, const SDL_Vector2f *translation)
 {
     D3D_RenderData *data = renderer->driverdata;
     HRESULT result, drawResult;
@@ -2020,7 +2020,7 @@ D3D_RenderGeometry(SDL_Renderer *renderer, SDL_Texture *texture, SDL_Vertex *ver
 
     if (indices) {
         drawResult = IDirect3DDevice9_DrawIndexedPrimitiveUP(data->device, D3DPT_TRIANGLELIST, 0,
-            numVertices, numIndices / 3, indices, D3DFMT_INDEX32, vertices, sizeof vertices[0]);
+            numVertices, numIndices / 3, indices, D3DFMT_INDEX16, vertices, sizeof vertices[0]);
     } else {
         drawResult = IDirect3DDevice9_DrawPrimitiveUP(data->device, D3DPT_TRIANGLELIST, numVertices / 3,
             vertices, sizeof vertices[0]);

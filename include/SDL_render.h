@@ -913,7 +913,7 @@ extern DECLSPEC int SDLCALL SDL_GL_UnbindTexture(SDL_Texture *texture);
  *
  *  \return 0 on success, or -1 if the operation is not supported
  */
-extern DECLSPEC int SDLCALL SDL_RenderGeometry(SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex *vertices, int num_vertices, int* indices, int num_indices, const SDL_Vector2f *translation);
+extern DECLSPEC int SDLCALL SDL_RenderGeometry(SDL_Renderer * renderer, SDL_Texture *texture, const SDL_Vertex *vertices, Uint16 num_vertices, const Uint16* indices, int num_indices, const SDL_Vector2f *translation);
 
 
 /* Ends C function definitions when using C++ */

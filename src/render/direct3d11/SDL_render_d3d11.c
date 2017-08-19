@@ -2406,13 +2406,6 @@ D3D11_RenderClear(SDL_Renderer * renderer)
     return 0;
 }
 
-//static int
-//D3D11_UpdateIndexBuffer(SDL_Renderer *renderer,
-//                        const void *indexData, size_t dataSizeInBytes)
-//{
-//    D3D11_UpdateBuffer(renderer, indexData, dataSizeIn
-//}
-
 static int
 D3D11_UpdateBuffer(D3D11_RenderData *rendererData,
     const void * data, size_t dataSizeInBytes,
@@ -2496,7 +2489,7 @@ D3D11_UpdateVertexBuffer(SDL_Renderer *renderer,
 
 static int
 D3D11_UpdateIndexBuffer(SDL_Renderer *renderer,
-    const void * indexData, size_t dataSizeInBytes)
+    const uint16_t * indexData, size_t dataSizeInBytes)
 {
     D3D11_RenderData *rendererData = renderer->driverdata;
     const UINT stride = sizeof(SDL_Vertex);
@@ -2511,7 +2504,7 @@ D3D11_UpdateIndexBuffer(SDL_Renderer *renderer,
 
     ID3D11DeviceContext_IASetIndexBuffer(rendererData->d3dContext,
         rendererData->indexBuffer,
-        DXGI_FORMAT_R32_UINT,
+        DXGI_FORMAT_R16_UINT,
         0);
 
     return 0;
@@ -3078,8 +3071,8 @@ done:
 }
 
 static int
-D3D11_RenderGeometry(SDL_Renderer *renderer, SDL_Texture *texture, SDL_Vertex *vertices, int numVertices,
-    int *indices, int numIndices, const SDL_Vector2f *translation)
+D3D11_RenderGeometry(SDL_Renderer *renderer, SDL_Texture *texture, const SDL_Vertex *vertices, Uint16 numVertices,
+    const Uint16 *indices, int numIndices, const SDL_Vector2f *translation)
 {
     D3D11_RenderData *rendererData = renderer->driverdata;
     Float4X4 modelMatrix;
@@ -3145,7 +3138,7 @@ D3D11_RenderGeometry(SDL_Renderer *renderer, SDL_Texture *texture, SDL_Vertex *v
     }
 
     if (indices) {
-        if (D3D11_UpdateIndexBuffer(renderer, indices, (size_t)numIndices * 4) != 0) {
+        if (D3D11_UpdateIndexBuffer(renderer, indices, (size_t)numIndices * (size_t)sizeof indices[0]) != 0) {
             return -1;
         }
 

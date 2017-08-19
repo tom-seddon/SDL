@@ -1976,17 +1976,13 @@ static int GLES2_UnbindTexture (SDL_Renderer * renderer, SDL_Texture *texture)
  * Geometry rendering
  *************************************************************************************************/
 static void GLES2_ResetState(SDL_Renderer *renderer);
-static int GLES2_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex *vertices, int num_vertices, int* indices, int num_indices, const SDL_Vector2f *translation);
 
-#define MAX_SHORT_INDICES 1024
-
-static int GLES2_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex *vertices, int num_vertices, int* indices, int num_indices, const SDL_Vector2f *translation)
+static int GLES2_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex *vertices, Uint16 num_vertices, const Uint16* indices, int num_indices, const SDL_Vector2f *translation)
 {
     int i, base;
     GLES2_DriverContext *data = (GLES2_DriverContext *)renderer->driverdata;
     GLES2_TextureData *texturedata = NULL;
     GLES2_ImageSource sourceType;
-    static unsigned short indices_[MAX_SHORT_INDICES];
 
     if (texture) {
         texturedata = (GLES2_TextureData *) texture->driverdata;
@@ -2117,22 +2113,8 @@ static int GLES2_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, 
     data->glUniform4f(data->current_program->uniform_locations[GLES2_UNIFORM_MODULATION], 1.0, 1.0, 1.0, 1.0);
 
     if (indices) {
-        /* int indices need to be converted to short */
-        base = 0;
-        for ( i = 0; base + i < num_indices; i++)
-        {
-            if (i == MAX_SHORT_INDICES) {
-                base += MAX_SHORT_INDICES;
-                i = 0;
-                data->glDrawElements(GL_TRIANGLES, MAX_SHORT_INDICES, GL_UNSIGNED_SHORT, indices_);
-            }
-            indices_[i] = (unsigned short) indices[i+base];
-        }
-
-        if (i) {
-            data->glDrawElements(GL_TRIANGLES, i, GL_UNSIGNED_SHORT, indices_);
-        }
-    }
+        data->glDrawElements(GL_TRIANGLES, num_indices, GL_UNSIGNED_SHORT, indices);
+    } 
     else {
         data->glDrawArrays(GL_TRIANGLES, 0, num_vertices);
     }
