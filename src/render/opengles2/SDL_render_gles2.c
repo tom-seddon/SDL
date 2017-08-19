@@ -1194,7 +1194,7 @@ GLES2_EvictShader(SDL_Renderer *renderer, GLES2_ShaderCacheEntry *entry)
 }
 
 static int
-GLES2_SelectProgram(SDL_Renderer *renderer, GLES2_ImageSource source, SDL_BlendMode blendMode, GLES2_ShaderType vtype)
+GLES2_SelectProgram(SDL_Renderer *renderer, GLES2_ImageSource source, GLES2_ShaderType vtype)
 {
     GLES2_DriverContext *data = (GLES2_DriverContext *)renderer->driverdata;
     GLES2_ShaderCacheEntry *vertex = NULL;
