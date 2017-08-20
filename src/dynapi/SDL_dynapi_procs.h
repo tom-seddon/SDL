@@ -662,5 +662,7 @@ SDL_DYNAPI_PROC(void*,SDL_LoadFile_RW,(SDL_RWops *a, size_t *b, int c),(a,b,c),r
 SDL_DYNAPI_PROC(int,SDL_wcscmp,(const wchar_t *a, const wchar_t *b),(a,b),return)
 SDL_DYNAPI_PROC(SDL_BlendMode,SDL_ComposeCustomBlendMode,(SDL_BlendFactor a, SDL_BlendFactor b, SDL_BlendOperation c, SDL_BlendFactor d, SDL_BlendFactor e, SDL_BlendOperation f),(a,b,c,d,e,f),return)
 SDL_DYNAPI_PROC(SDL_Surface*,SDL_DuplicateSurface,(SDL_Surface *a),(a),return)
+#ifdef __WIN32__
 SDL_DYNAPI_PROC(void,SDL_RenderGeometryDirect3D9SetHalfPixelOffset,(SDL_Renderer *a, SDL_bool b),(a,b),)
 SDL_DYNAPI_PROC(SDL_bool,SDL_RenderGeometryDirect3D9GetHalfPixelOffset,(SDL_Renderer *a),(a),return)
+#endif

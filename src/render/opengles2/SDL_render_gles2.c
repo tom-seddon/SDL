@@ -1979,7 +1979,6 @@ static void GLES2_ResetState(SDL_Renderer *renderer);
 
 static int GLES2_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex *vertices, Uint16 num_vertices, const Uint16* indices, int num_indices, const SDL_Vector2f *translation)
 {
-    int i, base;
     GLES2_DriverContext *data = (GLES2_DriverContext *)renderer->driverdata;
     GLES2_TextureData *texturedata = NULL;
     GLES2_ImageSource sourceType;
