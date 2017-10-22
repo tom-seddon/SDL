@@ -157,7 +157,7 @@ static int D3D_RenderCopyEx(SDL_Renderer * renderer, SDL_Texture * texture,
 static int D3D_RenderReadPixels(SDL_Renderer * renderer, const SDL_Rect * rect,
                                 Uint32 format, void * pixels, int pitch);
 static int D3D_RenderGeometry(SDL_Renderer *renderer, SDL_Texture *texture, SDL_Vertex *vertices,
-                              int numVertices, int *indices, int numIndices,
+                              Uint16 numVertices, const Uint16 *indices, int numIndices,
                               const SDL_Vector2f *translation);
 static void D3D_RenderPresent(SDL_Renderer * renderer);
 static void D3D_DestroyTexture(SDL_Renderer * renderer,
@@ -1925,7 +1925,7 @@ D3D_RenderReadPixels(SDL_Renderer * renderer, const SDL_Rect * rect,
 }
 
 static int
-D3D_RenderGeometry(SDL_Renderer *renderer, SDL_Texture *texture, const SDL_Vertex *vertices, Uint16 numVertices,
+D3D_RenderGeometry(SDL_Renderer *renderer, SDL_Texture *texture, SDL_Vertex *vertices, Uint16 numVertices,
                    const Uint16 *indices, int numIndices, const SDL_Vector2f *translation)
 {
     D3D_RenderData *data = renderer->driverdata;

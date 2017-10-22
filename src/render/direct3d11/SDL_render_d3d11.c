@@ -746,8 +746,8 @@ static int D3D11_RenderCopyEx(SDL_Renderer * renderer, SDL_Texture * texture,
 static int D3D11_RenderReadPixels(SDL_Renderer * renderer, const SDL_Rect * rect,
                                   Uint32 format, void * pixels, int pitch);
 static int D3D11_RenderGeometry(SDL_Renderer *renderer, SDL_Texture *texture, 
-                                SDL_Vertex *vertices, int numVertices,
-                                int *indices, int numIndices, 
+                                SDL_Vertex *vertices, Uint16 numVertices,
+                                const Uint16 *indices, int numIndices, 
                                 const SDL_Vector2f *translation);
 static void D3D11_RenderPresent(SDL_Renderer * renderer);
 static void D3D11_DestroyTexture(SDL_Renderer * renderer,
@@ -3071,7 +3071,7 @@ done:
 }
 
 static int
-D3D11_RenderGeometry(SDL_Renderer *renderer, SDL_Texture *texture, const SDL_Vertex *vertices, Uint16 numVertices,
+D3D11_RenderGeometry(SDL_Renderer *renderer, SDL_Texture *texture, SDL_Vertex *vertices, Uint16 numVertices,
     const Uint16 *indices, int numIndices, const SDL_Vector2f *translation)
 {
     D3D11_RenderData *rendererData = renderer->driverdata;
