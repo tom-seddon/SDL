@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2017 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2018 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -91,6 +91,9 @@ static const SDL_RenderDriver *render_drivers[] = {
 #endif
 #if SDL_VIDEO_RENDER_DIRECTFB
     &DirectFB_RenderDriver,
+#endif
+#if SDL_VIDEO_RENDER_METAL
+    &METAL_RenderDriver,
 #endif
 #if SDL_VIDEO_RENDER_PSP
     &PSP_RenderDriver,
@@ -219,7 +222,35 @@ SDL_RendererEventWatch(void *userdata, SDL_Event *event)
             event->button.x = (int)(event->button.x / (renderer->scale.x * renderer->dpi_scale.x));
             event->button.y = (int)(event->button.y / (renderer->scale.y * renderer->dpi_scale.y));
         }
+    } else if (event->type == SDL_FINGERDOWN ||
+               event->type == SDL_FINGERUP ||
+               event->type == SDL_FINGERMOTION) {
+        if (renderer->logical_w) {
+            int w = 1;
+            int h = 1;
+            SDL_GetRendererOutputSize(renderer, &w, &h);
+
+            event->tfinger.x *= (w - 1);
+            event->tfinger.y *= (h - 1);
+
+            event->tfinger.x -= (renderer->viewport.x * renderer->dpi_scale.x);
+            event->tfinger.y -= (renderer->viewport.y * renderer->dpi_scale.y);
+            event->tfinger.x = (event->tfinger.x / (renderer->scale.x * renderer->dpi_scale.x));
+            event->tfinger.y = (event->tfinger.y / (renderer->scale.y * renderer->dpi_scale.y));
+
+            if (renderer->logical_w > 1) {
+                event->tfinger.x = event->tfinger.x / (renderer->logical_w - 1);
+            } else {
+                event->tfinger.x = 0.5f;
+            }
+            if (renderer->logical_h > 1) {
+                event->tfinger.y = event->tfinger.y / (renderer->logical_h - 1);
+            } else {
+                event->tfinger.y = 0.5f;
+            }
+        }
     }
+
     return 0;
 }
 
@@ -1217,7 +1248,7 @@ UpdateLogicalSize(SDL_Renderer *renderer)
     SDL_Rect viewport;
     /* 0 is for letterbox, 1 is for overscan */
     int scale_policy = 0;
-    const char *hint = SDL_GetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE);
+    const char *hint;
 
     if (!renderer->logical_w || !renderer->logical_h) {
         return 0;
@@ -1226,23 +1257,20 @@ UpdateLogicalSize(SDL_Renderer *renderer)
         return -1;
     }
 
-    if (!hint) {
-        scale_policy = 0;
-    } else if ( *hint == '1' || SDL_strcasecmp(hint, "overscan") == 0)  {
-        /* Unfortunately, Direct3D 9 does't support negative viewport numbers
-        which the main overscan implementation relies on.
-        D3D11 does support negative values and uses a different id string
-        so overscan will work for D3D11.
+    hint = SDL_GetHint(SDL_HINT_RENDER_LOGICAL_SIZE_MODE);
+    if (hint && (*hint == '1' || SDL_strcasecmp(hint, "overscan") == 0))  {
+        SDL_bool overscan_supported = SDL_TRUE;
+        /* Unfortunately, Direct3D 9 doesn't support negative viewport numbers
+           which the overscan implementation relies on.
         */
-        if(SDL_strcasecmp("direct3d", SDL_GetCurrentVideoDriver())) {
-            scale_policy = 0;
-        } else {
+        if (SDL_strcasecmp(SDL_GetCurrentVideoDriver(), "direct3d") == 0) {
+            overscan_supported = SDL_FALSE;
+        }
+        if (overscan_supported) {
             scale_policy = 1;
         }
-    } else {
-        scale_policy = 0;
     }
-    
+
     want_aspect = (float)renderer->logical_w / renderer->logical_h;
     real_aspect = (float)w / h;
 
@@ -2092,7 +2120,6 @@ int SDL_GL_UnbindTexture(SDL_Texture *texture)
     return SDL_Unsupported();
 }
 
-
 int SDL_RenderGeometry(SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex *vertices, Uint16 num_vertices, const Uint16* indices, int num_indices, const SDL_Vector2f *translation)
 {
     CHECK_RENDERER_MAGIC(renderer, -1);
@@ -2123,6 +2150,28 @@ int SDL_RenderGeometry(SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex
     }
 
     return renderer->RenderGeometry(renderer, texture, vertices, num_vertices, indices, num_indices, translation);
+}
+
+void *
+SDL_RenderGetMetalLayer(SDL_Renderer * renderer)
+{
+    CHECK_RENDERER_MAGIC(renderer, NULL);
+
+    if (renderer->GetMetalLayer) {
+        return renderer->GetMetalLayer(renderer);
+    }
+    return NULL;
+}
+
+void *
+SDL_RenderGetMetalCommandEncoder(SDL_Renderer * renderer)
+{
+    CHECK_RENDERER_MAGIC(renderer, NULL);
+
+    if (renderer->GetMetalCommandEncoder) {
+        return renderer->GetMetalCommandEncoder(renderer);
+    }
+    return NULL;
 }
 
 static SDL_BlendMode

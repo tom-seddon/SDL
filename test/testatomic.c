@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 1997-2017 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2018 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -600,7 +600,7 @@ static void RunFIFOTest(SDL_bool lock_free)
     int i, j;
     int grand_total;
     char textBuffer[1024];
-    int len;
+    size_t len;
 
     SDL_Log("\nFIFO test---------------------------------------\n\n");
     SDL_Log("Mode: %s\n", lock_free ? "LockFree" : "Mutex");

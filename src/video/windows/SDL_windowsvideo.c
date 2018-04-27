@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2017 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2018 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -33,6 +33,7 @@
 #include "SDL_windowsvideo.h"
 #include "SDL_windowsframebuffer.h"
 #include "SDL_windowsshape.h"
+#include "SDL_windowsvulkan.h"
 
 /* Initialization/Query functions */
 static int WIN_VideoInit(_THIS);
@@ -136,13 +137,13 @@ WIN_CreateDevice(int devindex)
     device->SetDisplayMode = WIN_SetDisplayMode;
     device->PumpEvents = WIN_PumpEvents;
 
-#undef CreateWindow
-    device->CreateWindow = WIN_CreateWindow;
-    device->CreateWindowFrom = WIN_CreateWindowFrom;
+    device->CreateSDLWindow = WIN_CreateWindow;
+    device->CreateSDLWindowFrom = WIN_CreateWindowFrom;
     device->SetWindowTitle = WIN_SetWindowTitle;
     device->SetWindowIcon = WIN_SetWindowIcon;
     device->SetWindowPosition = WIN_SetWindowPosition;
     device->SetWindowSize = WIN_SetWindowSize;
+    device->GetWindowBordersSize = WIN_GetWindowBordersSize;
     device->SetWindowOpacity = WIN_SetWindowOpacity;
     device->ShowWindow = WIN_ShowWindow;
     device->HideWindow = WIN_HideWindow;
@@ -190,6 +191,13 @@ WIN_CreateDevice(int devindex)
     device->GL_SwapWindow = WIN_GLES_SwapWindow;
     device->GL_DeleteContext = WIN_GLES_DeleteContext;
 #endif
+#if SDL_VIDEO_VULKAN
+    device->Vulkan_LoadLibrary = WIN_Vulkan_LoadLibrary;
+    device->Vulkan_UnloadLibrary = WIN_Vulkan_UnloadLibrary;
+    device->Vulkan_GetInstanceExtensions = WIN_Vulkan_GetInstanceExtensions;
+    device->Vulkan_CreateSurface = WIN_Vulkan_CreateSurface;
+#endif
+
     device->StartTextInput = WIN_StartTextInput;
     device->StopTextInput = WIN_StopTextInput;
     device->SetTextInputRect = WIN_SetTextInputRect;

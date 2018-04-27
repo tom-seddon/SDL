@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2017 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2018 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -68,8 +68,8 @@ BE_CreateDevice(int devindex)
     device->SetDisplayMode = BE_SetDisplayMode;
     device->PumpEvents = BE_PumpEvents;
 
-    device->CreateWindow = BE_CreateWindow;
-    device->CreateWindowFrom = BE_CreateWindowFrom;
+    device->CreateSDLWindow = BE_CreateWindow;
+    device->CreateSDLWindowFrom = BE_CreateWindowFrom;
     device->SetWindowTitle = BE_SetWindowTitle;
     device->SetWindowIcon = BE_SetWindowIcon;
     device->SetWindowPosition = BE_SetWindowPosition;

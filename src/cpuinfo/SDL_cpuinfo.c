@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2017 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2018 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -26,6 +26,13 @@
 
 #if defined(__WIN32__)
 #include "../core/windows/SDL_windows.h"
+#endif
+#if defined(__OS2__)
+#define INCL_DOS
+#include <os2.h>
+#ifndef QSV_NUMPROCESSORS
+#define QSV_NUMPROCESSORS 26
+#endif
 #endif
 
 /* CPU feature detection for SDL */
@@ -342,7 +349,7 @@ CPU_haveNEON(void)
     /* (note that sysctlbyname("hw.optional.neon") doesn't work!) */
     return 1;  /* all Apple ARMv7 chips and later have NEON. */
 #elif defined(__APPLE__)
-    return 0;  /* assune anything else from Apple doesn't have NEON. */
+    return 0;  /* assume anything else from Apple doesn't have NEON. */
 #elif defined(__QNXNTO__)
     return SYSPAGE_ENTRY(cpuinfo)->flags & ARM_CPU_FLAG_NEON;
 #elif (defined(__LINUX__) || defined(__ANDROID__)) && defined(HAVE_GETAUXVAL)
@@ -416,6 +423,12 @@ SDL_GetCPUCount(void)
             SYSTEM_INFO info;
             GetSystemInfo(&info);
             SDL_CPUCount = info.dwNumberOfProcessors;
+        }
+#endif
+#ifdef __OS2__
+        if (SDL_CPUCount <= 0) {
+            DosQuerySysInfo(QSV_NUMPROCESSORS, QSV_NUMPROCESSORS,
+                            &SDL_CPUCount, sizeof(SDL_CPUCount) );
         }
 #endif
 #endif
@@ -717,6 +730,13 @@ SDL_GetSystemRAM(void)
             if (GlobalMemoryStatusEx(&stat)) {
                 SDL_SystemRAM = (int)(stat.ullTotalPhys / (1024 * 1024));
             }
+        }
+#endif
+#ifdef __OS2__
+        if (SDL_SystemRAM <= 0) {
+            Uint32 sysram = 0;
+            DosQuerySysInfo(QSV_TOTPHYSMEM, QSV_TOTPHYSMEM, &sysram, 4);
+            SDL_SystemRAM = (int) (sysram / 0x100000U);
         }
 #endif
 #endif

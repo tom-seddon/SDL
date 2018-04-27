@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2017 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2018 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -37,6 +37,7 @@
 #include "SDL_uikitwindow.h"
 #include "SDL_uikitopengles.h"
 #include "SDL_uikitclipboard.h"
+#include "SDL_uikitvulkan.h"
 
 #define UIKITVID_DRIVER_NAME "uikit"
 
@@ -90,7 +91,7 @@ UIKit_CreateDevice(int devindex)
         device->SetDisplayMode = UIKit_SetDisplayMode;
         device->PumpEvents = UIKit_PumpEvents;
         device->SuspendScreenSaver = UIKit_SuspendScreenSaver;
-        device->CreateWindow = UIKit_CreateWindow;
+        device->CreateSDLWindow = UIKit_CreateWindow;
         device->SetWindowTitle = UIKit_SetWindowTitle;
         device->ShowWindow = UIKit_ShowWindow;
         device->HideWindow = UIKit_HideWindow;
@@ -101,13 +102,13 @@ UIKit_CreateDevice(int devindex)
         device->GetWindowWMInfo = UIKit_GetWindowWMInfo;
         device->GetDisplayUsableBounds = UIKit_GetDisplayUsableBounds;
 
-    #if SDL_IPHONE_KEYBOARD
+#if SDL_IPHONE_KEYBOARD
         device->HasScreenKeyboardSupport = UIKit_HasScreenKeyboardSupport;
         device->ShowScreenKeyboard = UIKit_ShowScreenKeyboard;
         device->HideScreenKeyboard = UIKit_HideScreenKeyboard;
         device->IsScreenKeyboardShown = UIKit_IsScreenKeyboardShown;
         device->SetTextInputRect = UIKit_SetTextInputRect;
-    #endif
+#endif
 
         device->SetClipboardText = UIKit_SetClipboardText;
         device->GetClipboardText = UIKit_GetClipboardText;
@@ -122,6 +123,15 @@ UIKit_CreateDevice(int devindex)
         device->GL_GetProcAddress   = UIKit_GL_GetProcAddress;
         device->GL_LoadLibrary      = UIKit_GL_LoadLibrary;
         device->free = UIKit_DeleteDevice;
+
+#if SDL_VIDEO_VULKAN
+        device->Vulkan_LoadLibrary = UIKit_Vulkan_LoadLibrary;
+        device->Vulkan_UnloadLibrary = UIKit_Vulkan_UnloadLibrary;
+        device->Vulkan_GetInstanceExtensions
+                                     = UIKit_Vulkan_GetInstanceExtensions;
+        device->Vulkan_CreateSurface = UIKit_Vulkan_CreateSurface;
+        device->Vulkan_GetDrawableSize = UIKit_Vulkan_GetDrawableSize;
+#endif
 
         device->gl_config.accelerated = 1;
 

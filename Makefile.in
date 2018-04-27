@@ -113,6 +113,7 @@ HDRS = \
 	SDL_version.h \
 	SDL_vertex.h \
 	SDL_video.h \
+	SDL_vulkan.h \
 	begin_code.h \
 	close_code.h
 

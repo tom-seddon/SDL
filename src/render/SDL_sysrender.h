@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2017 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2018 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -125,6 +125,9 @@ struct SDL_Renderer
     int (*GL_UnbindTexture) (SDL_Renderer * renderer, SDL_Texture *texture);
 
     int (*RenderGeometry) (SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex *vertices, Uint16 num_vertices, const Uint16* indices, int num_indices, const SDL_Vector2f *translation);
+    
+    void *(*GetMetalLayer) (SDL_Renderer * renderer);
+    void *(*GetMetalCommandEncoder) (SDL_Renderer * renderer);
 
     /* The current renderer info */
     SDL_RendererInfo info;
@@ -187,6 +190,7 @@ extern SDL_RenderDriver GL_RenderDriver;
 extern SDL_RenderDriver GLES2_RenderDriver;
 extern SDL_RenderDriver GLES_RenderDriver;
 extern SDL_RenderDriver DirectFB_RenderDriver;
+extern SDL_RenderDriver METAL_RenderDriver;
 extern SDL_RenderDriver PSP_RenderDriver;
 extern SDL_RenderDriver SW_RenderDriver;
 

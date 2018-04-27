@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2017 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2018 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -46,6 +46,10 @@
 
 #ifndef INFTIM
 #define INFTIM -1
+#endif
+
+#ifndef SIO_DEVANY
+#define SIO_DEVANY "default"
 #endif
 
 static struct sio_hdl * (*SNDIO_sio_open)(const char *, unsigned int, int);

@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2017 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2018 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -561,16 +561,12 @@ SDL_strlcat(SDL_INOUT_Z_CAP(maxlen) char *dst, const char *src, size_t maxlen)
 char *
 SDL_strdup(const char *string)
 {
-#if defined(HAVE_STRDUP)
-    return strdup(string);
-#else
     size_t len = SDL_strlen(string) + 1;
     char *newstr = SDL_malloc(len);
     if (newstr) {
-        SDL_strlcpy(newstr, string, len);
+        SDL_memcpy(newstr, string, len);
     }
     return newstr;
-#endif /* HAVE_STRDUP */
 }
 
 char *
@@ -1197,7 +1193,7 @@ SDL_vsscanf(const char *text, const char *fmt, va_list ap)
                     /* Fall through to unsigned handling */
                 case 'u':
                     if (inttype == DO_LONGLONG) {
-                        Uint64 value;
+                        Uint64 value = 0;
                         advance = SDL_ScanUnsignedLongLong(text, radix, &value);
                         text += advance;
                         if (advance && !suppress) {
@@ -1206,7 +1202,7 @@ SDL_vsscanf(const char *text, const char *fmt, va_list ap)
                             ++retval;
                         }
                     } else {
-                        unsigned long value;
+                        unsigned long value = 0;
                         advance = SDL_ScanUnsignedLong(text, radix, &value);
                         text += advance;
                         if (advance && !suppress) {
@@ -1240,7 +1236,7 @@ SDL_vsscanf(const char *text, const char *fmt, va_list ap)
                     break;
                 case 'p':
                     {
-                        uintptr_t value;
+                        uintptr_t value = 0;
                         advance = SDL_ScanUintPtrT(text, 16, &value);
                         text += advance;
                         if (advance && !suppress) {

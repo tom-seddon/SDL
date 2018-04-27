@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2017 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2018 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -262,10 +262,8 @@ GL_CheckAllErrors (const char *prefix, SDL_Renderer *renderer, const char *file,
 
 #if 0
 #define GL_CheckError(prefix, renderer)
-#elif defined(_MSC_VER) || defined(__WATCOMC__)
-#define GL_CheckError(prefix, renderer) GL_CheckAllErrors(prefix, renderer, __FILE__, __LINE__, __FUNCTION__)
 #else
-#define GL_CheckError(prefix, renderer) GL_CheckAllErrors(prefix, renderer, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define GL_CheckError(prefix, renderer) GL_CheckAllErrors(prefix, renderer, SDL_FILE, SDL_LINE, SDL_FUNCTION)
 #endif
 
 static int
@@ -771,12 +769,12 @@ GL_CreateTexture(SDL_Renderer * renderer, SDL_Texture * texture)
         if (texture->format == SDL_PIXELFORMAT_YV12 ||
             texture->format == SDL_PIXELFORMAT_IYUV) {
             /* Need to add size for the U and V planes */
-            size += (2 * (texture->h * data->pitch) / 4);
+            size += 2 * ((texture->h + 1) / 2) * ((data->pitch + 1) / 2);
         }
         if (texture->format == SDL_PIXELFORMAT_NV12 ||
             texture->format == SDL_PIXELFORMAT_NV21) {
             /* Need to add size for the U/V plane */
-            size += ((texture->h * data->pitch) / 2);
+            size += 2 * ((texture->h + 1) / 2) * ((data->pitch + 1) / 2);
         }
         data->pixels = SDL_calloc(1, size);
         if (!data->pixels) {
@@ -894,8 +892,8 @@ GL_CreateTexture(SDL_Renderer * renderer, SDL_Texture * texture)
                                     GL_CLAMP_TO_EDGE);
         renderdata->glTexParameteri(data->type, GL_TEXTURE_WRAP_T,
                                     GL_CLAMP_TO_EDGE);
-        renderdata->glTexImage2D(data->type, 0, internalFormat, texture_w/2,
-                                 texture_h/2, 0, format, type, NULL);
+        renderdata->glTexImage2D(data->type, 0, internalFormat, (texture_w+1)/2,
+                                 (texture_h+1)/2, 0, format, type, NULL);
 
         renderdata->glBindTexture(data->type, data->vtexture);
         renderdata->glTexParameteri(data->type, GL_TEXTURE_MIN_FILTER,
@@ -906,8 +904,8 @@ GL_CreateTexture(SDL_Renderer * renderer, SDL_Texture * texture)
                                     GL_CLAMP_TO_EDGE);
         renderdata->glTexParameteri(data->type, GL_TEXTURE_WRAP_T,
                                     GL_CLAMP_TO_EDGE);
-        renderdata->glTexImage2D(data->type, 0, internalFormat, texture_w/2,
-                                 texture_h/2, 0, format, type, NULL);
+        renderdata->glTexImage2D(data->type, 0, internalFormat, (texture_w+1)/2,
+                                 (texture_h+1)/2, 0, format, type, NULL);
 
         renderdata->glDisable(data->type);
     }
@@ -928,8 +926,8 @@ GL_CreateTexture(SDL_Renderer * renderer, SDL_Texture * texture)
                                     GL_CLAMP_TO_EDGE);
         renderdata->glTexParameteri(data->type, GL_TEXTURE_WRAP_T,
                                     GL_CLAMP_TO_EDGE);
-        renderdata->glTexImage2D(data->type, 0, GL_LUMINANCE_ALPHA, texture_w/2,
-                                 texture_h/2, 0, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, NULL);
+        renderdata->glTexImage2D(data->type, 0, GL_LUMINANCE_ALPHA, (texture_w+1)/2,
+                                 (texture_h+1)/2, 0, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, NULL);
         renderdata->glDisable(data->type);
     }
 
@@ -956,7 +954,7 @@ GL_UpdateTexture(SDL_Renderer * renderer, SDL_Texture * texture,
                                 rect->h, data->format, data->formattype,
                                 pixels);
     if (data->yuv) {
-        renderdata->glPixelStorei(GL_UNPACK_ROW_LENGTH, (pitch / 2));
+        renderdata->glPixelStorei(GL_UNPACK_ROW_LENGTH, ((pitch + 1) / 2));
 
         /* Skip to the correct offset into the next texture */
         pixels = (const void*)((const Uint8*)pixels + rect->h * pitch);
@@ -966,29 +964,29 @@ GL_UpdateTexture(SDL_Renderer * renderer, SDL_Texture * texture,
             renderdata->glBindTexture(data->type, data->utexture);
         }
         renderdata->glTexSubImage2D(data->type, 0, rect->x/2, rect->y/2,
-                                    rect->w/2, rect->h/2,
+                                    (rect->w+1)/2, (rect->h+1)/2,
                                     data->format, data->formattype, pixels);
 
         /* Skip to the correct offset into the next texture */
-        pixels = (const void*)((const Uint8*)pixels + (rect->h * pitch)/4);
+        pixels = (const void*)((const Uint8*)pixels + ((rect->h + 1) / 2) * ((pitch + 1) / 2));
         if (texture->format == SDL_PIXELFORMAT_YV12) {
             renderdata->glBindTexture(data->type, data->utexture);
         } else {
             renderdata->glBindTexture(data->type, data->vtexture);
         }
         renderdata->glTexSubImage2D(data->type, 0, rect->x/2, rect->y/2,
-                                    rect->w/2, rect->h/2,
+                                    (rect->w+1)/2, (rect->h+1)/2,
                                     data->format, data->formattype, pixels);
     }
 
     if (data->nv12) {
-        renderdata->glPixelStorei(GL_UNPACK_ROW_LENGTH, (pitch / 2));
+        renderdata->glPixelStorei(GL_UNPACK_ROW_LENGTH, ((pitch + 1) / 2));
 
         /* Skip to the correct offset into the next texture */
         pixels = (const void*)((const Uint8*)pixels + rect->h * pitch);
         renderdata->glBindTexture(data->type, data->utexture);
         renderdata->glTexSubImage2D(data->type, 0, rect->x/2, rect->y/2,
-                                    rect->w/2, rect->h/2,
+                                    (rect->w + 1)/2, (rect->h + 1)/2,
                                     GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, pixels);
     }
     renderdata->glDisable(data->type);
@@ -1019,13 +1017,13 @@ GL_UpdateTextureYUV(SDL_Renderer * renderer, SDL_Texture * texture,
     renderdata->glPixelStorei(GL_UNPACK_ROW_LENGTH, Upitch);
     renderdata->glBindTexture(data->type, data->utexture);
     renderdata->glTexSubImage2D(data->type, 0, rect->x/2, rect->y/2,
-                                rect->w/2, rect->h/2,
+                                (rect->w + 1)/2, (rect->h + 1)/2,
                                 data->format, data->formattype, Uplane);
 
     renderdata->glPixelStorei(GL_UNPACK_ROW_LENGTH, Vpitch);
     renderdata->glBindTexture(data->type, data->vtexture);
     renderdata->glTexSubImage2D(data->type, 0, rect->x/2, rect->y/2,
-                                rect->w/2, rect->h/2,
+                                (rect->w + 1)/2, (rect->h + 1)/2,
                                 data->format, data->formattype, Vplane);
     renderdata->glDisable(data->type);
 
@@ -1368,13 +1366,37 @@ GL_SetupCopy(SDL_Renderer * renderer, SDL_Texture * texture)
 
     GL_SetBlendMode(data, texture->blendMode);
 
-    if (texturedata->yuv) {
-        GL_SetShader(data, SHADER_YUV);
-    } else if (texturedata->nv12) {
-        if (texture->format == SDL_PIXELFORMAT_NV12) {
-            GL_SetShader(data, SHADER_NV12);
-        } else {
-            GL_SetShader(data, SHADER_NV21);
+    if (texturedata->yuv || texturedata->nv12) {
+        switch (SDL_GetYUVConversionModeForResolution(texture->w, texture->h)) {
+        case SDL_YUV_CONVERSION_JPEG:
+            if (texturedata->yuv) {
+                GL_SetShader(data, SHADER_YUV_JPEG);
+            } else if (texture->format == SDL_PIXELFORMAT_NV12) {
+                GL_SetShader(data, SHADER_NV12_JPEG);
+            } else {
+                GL_SetShader(data, SHADER_NV21_JPEG);
+            }
+            break;
+        case SDL_YUV_CONVERSION_BT601:
+            if (texturedata->yuv) {
+                GL_SetShader(data, SHADER_YUV_BT601);
+            } else if (texture->format == SDL_PIXELFORMAT_NV12) {
+                GL_SetShader(data, SHADER_NV12_BT601);
+            } else {
+                GL_SetShader(data, SHADER_NV21_BT601);
+            }
+            break;
+        case SDL_YUV_CONVERSION_BT709:
+            if (texturedata->yuv) {
+                GL_SetShader(data, SHADER_YUV_BT709);
+            } else if (texture->format == SDL_PIXELFORMAT_NV12) {
+                GL_SetShader(data, SHADER_NV12_BT709);
+            } else {
+                GL_SetShader(data, SHADER_NV21_BT709);
+            }
+            break;
+        default:
+            return SDL_SetError("Unsupported YUV conversion mode");
         }
     } else {
         GL_SetShader(data, SHADER_RGB);
