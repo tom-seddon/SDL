@@ -1762,34 +1762,10 @@ D3D_RenderGeometry(SDL_Renderer *renderer, SDL_Texture *texture, SDL_Vertex *ver
     }
 
     if (texture) {
-        D3D_TextureData *texturedata;
-
         D3D_SetBlendMode(data, texture->blendMode);
 
-        texturedata = (D3D_TextureData *)texture->driverdata;
-        if (!texturedata) {
-            SDL_SetError("Texture is not currently available");
+        if (D3D_RenderSetupTextureState(renderer, texture, &shader) < 0) {
             return -1;
-        }
-
-        D3D_UpdateTextureScaleMode(data, texturedata, 0);
-
-        if (D3D_BindTextureRep(data->device, &texturedata->texture, 0) < 0) {
-            return -1;
-        }
-
-        if (texturedata->yuv) {
-            shader = data->ps_yuv;
-
-            D3D_UpdateTextureScaleMode(data, texturedata, 1);
-            D3D_UpdateTextureScaleMode(data, texturedata, 2);
-
-            if (D3D_BindTextureRep(data->device, &texturedata->utexture, 1) < 0) {
-                return -1;
-            }
-            if (D3D_BindTextureRep(data->device, &texturedata->vtexture, 2) < 0) {
-                return -1;
-            }
         }
 
         if (shader) {

@@ -1717,29 +1717,11 @@ static int GL_RenderGeometry (SDL_Renderer * renderer, SDL_Texture *texture, SDL
 
     if (texture) {
         data->glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-        data->glEnable(texturedata->type);
-        if (texturedata->yuv) {
-            data->glActiveTextureARB(GL_TEXTURE2_ARB);
-            data->glBindTexture(texturedata->type, texturedata->vtexture);
 
-            data->glActiveTextureARB(GL_TEXTURE1_ARB);
-            data->glBindTexture(texturedata->type, texturedata->utexture);
+        GL_SetupCopy(renderer, texture);
 
-            data->glActiveTextureARB(GL_TEXTURE0_ARB);
-            if (texturedata->type == GL_TEXTURE_RECTANGLE_ARB && data->GL_shaders_textureSize_supported) {
-                GL_SetShader(data, SHADER_YV12_AUTOSCALE);
-            }
-            else {
-                GL_SetShader(data, SHADER_YUV);
-            }
-        }
-        else {
-            if (texturedata->type == GL_TEXTURE_RECTANGLE_ARB && data->GL_shaders_textureSize_supported) {
-                GL_SetShader(data, SHADER_RGB_AUTOSCALE);
-            }
-            else {
-                GL_SetShader(data, SHADER_RGB);
-            }
+        if (GL_SetupCopy(renderer, texture) == -1) {
+            return -1;
         }
 
         data->glBindTexture(texturedata->type, texturedata->texture);

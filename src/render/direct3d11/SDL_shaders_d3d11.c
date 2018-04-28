@@ -29,6 +29,7 @@
 #include <d3d11_1.h>
 
 #include "SDL_shaders_d3d11.h"
+#include "SDL_vertex.h"
 
 #define SDL_COMPOSE_ERROR(str) SDL_STRINGIFY_ARG(__FUNCTION__) ", " str
 
@@ -1905,9 +1906,9 @@ int D3D11_CreateVertexShader(ID3D11Device1 *d3dDevice, ID3D11VertexShader **vert
     /* Declare how the input layout for SDL's vertex shader will be setup: */
     const D3D11_INPUT_ELEMENT_DESC vertexDesc[] = 
     {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 20, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(SDL_Vertex, position), D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(SDL_Vertex, tex_coord), D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, offsetof(SDL_Vertex, color), D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
     HRESULT result;
 

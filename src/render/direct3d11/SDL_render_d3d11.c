@@ -2296,7 +2296,6 @@ D3D11_RenderCopy(SDL_Renderer * renderer, SDL_Texture * texture,
     float minu, maxu, minv, maxv;
     SDL_Color color;
     SDL_Vertex vertices[4];
-    ID3D11SamplerState *textureSampler;
 
     D3D11_RenderStartDrawOp(renderer);
     D3D11_RenderSetBlendMode(renderer, texture->blendMode);
@@ -2368,7 +2367,6 @@ D3D11_RenderCopyEx(SDL_Renderer * renderer, SDL_Texture * texture,
     Float4X4 modelMatrix;
     float minx, maxx, miny, maxy;
     SDL_Vertex vertices[4];
-    ID3D11SamplerState *textureSampler;
 
     D3D11_RenderStartDrawOp(renderer);
     D3D11_RenderSetBlendMode(renderer, texture->blendMode);
@@ -2590,36 +2588,15 @@ D3D11_RenderGeometry(SDL_Renderer *renderer, SDL_Texture *texture, SDL_Vertex *v
     D3D11_SetModelMatrix(renderer, &modelMatrix);
 
     if (texture) {
-        D3D11_TextureData *textureData = texture->driverdata;
-        ID3D11SamplerState *textureSampler;
-
         D3D11_RenderSetBlendMode(renderer, texture->blendMode);
 
-        textureSampler = D3D11_RenderGetSampler(renderer, texture);
-        if (textureData->yuv) {
-            ID3D11ShaderResourceView *shaderResources[] = {
-                textureData->mainTextureResourceView,
-                textureData->mainTextureResourceViewU,
-                textureData->mainTextureResourceViewV
-            };
-            D3D11_SetPixelShader(
-                renderer,
-                rendererData->yuvPixelShader,
-                SDL_arraysize(shaderResources),
-                shaderResources,
-                textureSampler);
-        } else {
-            D3D11_SetPixelShader(
-                renderer,
-                rendererData->texturePixelShader,
-                1,
-                &textureData->mainTextureResourceView,
-                textureSampler);
+        if (D3D11_RenderSetupSampler(renderer, texture) == -1) {
+            return -1;
         }
     } else {
         D3D11_RenderSetBlendMode(renderer, renderer->blendMode);
 
-        D3D11_SetPixelShader(renderer, rendererData->colorPixelShader, 0, NULL, NULL);
+        D3D11_SetPixelShader(renderer, rendererData->pixelShaders[SHADER_SOLID], 0, NULL, NULL);
     }
 
     if (D3D11_UpdateVertexBuffer(renderer, vertices, (size_t)numVertices * sizeof(SDL_Vertex)) != 0) {
