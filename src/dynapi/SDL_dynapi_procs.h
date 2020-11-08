@@ -833,3 +833,4 @@ SDL_DYNAPI_PROC(SDL_bool,SDL_GameControllerHasLED,(SDL_GameController *a),(a),re
 SDL_DYNAPI_PROC(int,SDL_GameControllerSetLED,(SDL_GameController *a, Uint8 b, Uint8 c, Uint8 d),(a,b,c,d),return)
 SDL_DYNAPI_PROC(SDL_bool,SDL_JoystickHasLED,(SDL_Joystick *a),(a),return)
 SDL_DYNAPI_PROC(int,SDL_JoystickSetLED,(SDL_Joystick *a, Uint8 b, Uint8 c, Uint8 d),(a,b,c,d),return)
+SDL_DYNAPI_PROC(int,SDL_RenderGeometry,(SDL_Renderer *a, SDL_Texture *b, SDL_Vertex *c, Uint16 d, const Uint16 *e, int f, const SDL_Vector2f *g),(a,b,c,d,e,f,g),return)

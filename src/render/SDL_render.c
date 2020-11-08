@@ -3329,6 +3329,39 @@ SDL_RenderGetMetalCommandEncoder(SDL_Renderer * renderer)
     return NULL;
 }
 
+int SDL_RenderGeometry(SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex *vertices, Uint16 num_vertices, const Uint16* indices, int num_indices, const SDL_Vector2f *translation)
+{
+    CHECK_RENDERER_MAGIC(renderer, -1);
+
+    if (texture) {
+        CHECK_TEXTURE_MAGIC(texture, -1);
+
+        if (renderer != texture->renderer) {
+            SDL_SetError("Texture was not created with this renderer");
+            return -1;
+        }
+    }
+
+    if (!renderer->RenderGeometry) {
+        SDL_SetError("Renderer does not support RenderGeometry");
+        return -1;
+    }
+
+    if(!vertices) {
+        SDL_SetError("Vertices parameter can not be null");
+        return -1;
+    }
+
+    if (texture) {
+        if (texture->native) {
+            texture = texture->native;
+        }
+    }
+
+    return renderer->RenderGeometry(renderer, texture, vertices, num_vertices, indices, num_indices, translation);
+}
+
+
 static SDL_BlendMode
 SDL_GetShortBlendMode(SDL_BlendMode blendMode)
 {

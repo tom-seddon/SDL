@@ -154,6 +154,11 @@ struct SDL_Renderer
     void *(*GetMetalLayer) (SDL_Renderer * renderer);
     void *(*GetMetalCommandEncoder) (SDL_Renderer * renderer);
 
+    int (*RenderGeometry) (SDL_Renderer * renderer, SDL_Texture *texture,
+                           SDL_Vertex *vertices, Uint16 num_vertices,
+                           const Uint16* indices, int num_indices,
+                           const SDL_Vector2f *translation);
+    
     /* The current renderer info */
     SDL_RendererInfo info;
 

@@ -51,6 +51,7 @@
 #include "SDL_stdinc.h"
 #include "SDL_rect.h"
 #include "SDL_video.h"
+#include "SDL_vertex.h"
 
 #include "begin_code.h"
 /* Set up for C function definitions, even when using C++ */
@@ -68,8 +69,11 @@ typedef enum
                                                      acceleration */
     SDL_RENDERER_PRESENTVSYNC = 0x00000004,     /**< Present is synchronized
                                                      with the refresh rate */
-    SDL_RENDERER_TARGETTEXTURE = 0x00000008     /**< The renderer supports
+    SDL_RENDERER_TARGETTEXTURE = 0x00000008,    /**< The renderer supports
                                                      rendering to texture */
+    SDL_RENDERER_RENDERGEOMETRY = 0x00000010,   /**< The rendere supports
+                                                     SDL_RenderGeometry */
+    
 } SDL_RendererFlags;
 
 /**
@@ -1146,6 +1150,20 @@ extern DECLSPEC void *SDLCALL SDL_RenderGetMetalLayer(SDL_Renderer * renderer);
  *  \sa SDL_RenderGetMetalLayer()
  */
 extern DECLSPEC void *SDLCALL SDL_RenderGetMetalCommandEncoder(SDL_Renderer * renderer);
+
+/**
+ *  \brief Render a set of vertex, optionally using a texture and indices into the vertex array
+ *
+ *  \param texture  (optional) The SDL texture to unbind
+ *  \param vertices  An array of SDL_Vertex elements to be rendered
+ *  \param num_vertices  Number of elements in the vertices array
+ *  \param indices (optional) An array of integers indices into the vertices array, if NULL all vertices will be rendered in sequential order
+ *  \param num_indices  Number of elements in the indices array (ignored if indices is NULL)
+ *  \param translation (optional) A translation vector that will be applied to the vertices prior to rendering
+ *
+ *  \return 0 on success, or -1 if the operation is not supported
+ */
+extern DECLSPEC int SDLCALL SDL_RenderGeometry(SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex *vertices, Uint16 num_vertices, const Uint16* indices, int num_indices, const SDL_Vector2f *translation);
 
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus
