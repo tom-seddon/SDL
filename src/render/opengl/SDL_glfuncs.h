@@ -73,8 +73,8 @@ SDL_PROC_UNUSED(void, glColor4i, (GLint, GLint, GLint, GLint))
 SDL_PROC_UNUSED(void, glColor4iv, (const GLint *))
 SDL_PROC_UNUSED(void, glColor4s, (GLshort, GLshort, GLshort, GLshort))
 SDL_PROC_UNUSED(void, glColor4sv, (const GLshort *))
-SDL_PROC_UNUSED(void, glColor4ub,
-                (GLubyte red, GLubyte green, GLubyte blue, GLubyte alpha))
+SDL_PROC(void, glColor4ub,
+         (GLubyte red, GLubyte green, GLubyte blue, GLubyte alpha))
 SDL_PROC_UNUSED(void, glColor4ubv, (const GLubyte * v))
 SDL_PROC_UNUSED(void, glColor4ui,
                 (GLuint red, GLuint green, GLuint blue, GLuint alpha))
@@ -86,9 +86,9 @@ SDL_PROC_UNUSED(void, glColorMask,
                 (GLboolean red, GLboolean green, GLboolean blue,
                  GLboolean alpha))
 SDL_PROC_UNUSED(void, glColorMaterial, (GLenum face, GLenum mode))
-SDL_PROC_UNUSED(void, glColorPointer,
-                (GLint size, GLenum type, GLsizei stride,
-                 const GLvoid * pointer))
+SDL_PROC(void, glColorPointer,
+         (GLint size, GLenum type, GLsizei stride,
+          const GLvoid * pointer))
 SDL_PROC_UNUSED(void, glCopyPixels,
                 (GLint x, GLint y, GLsizei width, GLsizei height,
                  GLenum type))
@@ -111,12 +111,12 @@ SDL_PROC(void, glDepthFunc, (GLenum func))
 SDL_PROC_UNUSED(void, glDepthMask, (GLboolean flag))
 SDL_PROC_UNUSED(void, glDepthRange, (GLclampd zNear, GLclampd zFar))
 SDL_PROC(void, glDisable, (GLenum cap))
-SDL_PROC_UNUSED(void, glDisableClientState, (GLenum array))
-SDL_PROC_UNUSED(void, glDrawArrays, (GLenum mode, GLint first, GLsizei count))
+SDL_PROC(void, glDisableClientState, (GLenum array))
+SDL_PROC(void, glDrawArrays, (GLenum mode, GLint first, GLsizei count))
 SDL_PROC_UNUSED(void, glDrawBuffer, (GLenum mode))
-SDL_PROC_UNUSED(void, glDrawElements,
-                (GLenum mode, GLsizei count, GLenum type,
-                 const GLvoid * indices))
+SDL_PROC(void, glDrawElements,
+         (GLenum mode, GLsizei count, GLenum type,
+          const GLvoid * indices))
 SDL_PROC(void, glDrawPixels,
          (GLsizei width, GLsizei height, GLenum format, GLenum type,
           const GLvoid * pixels))
@@ -125,7 +125,7 @@ SDL_PROC_UNUSED(void, glEdgeFlagPointer,
                 (GLsizei stride, const GLvoid * pointer))
 SDL_PROC_UNUSED(void, glEdgeFlagv, (const GLboolean * flag))
 SDL_PROC(void, glEnable, (GLenum cap))
-SDL_PROC_UNUSED(void, glEnableClientState, (GLenum array))
+SDL_PROC(void, glEnableClientState, (GLenum array))
 SDL_PROC(void, glEnd, (void))
 SDL_PROC_UNUSED(void, glEndList, (void))
 SDL_PROC_UNUSED(void, glEvalCoord1d, (GLdouble u))
@@ -401,9 +401,9 @@ SDL_PROC_UNUSED(void, glTexCoord4iv, (const GLint * v))
 SDL_PROC_UNUSED(void, glTexCoord4s,
                 (GLshort s, GLshort t, GLshort r, GLshort q))
 SDL_PROC_UNUSED(void, glTexCoord4sv, (const GLshort * v))
-SDL_PROC_UNUSED(void, glTexCoordPointer,
-                (GLint size, GLenum type, GLsizei stride,
-                 const GLvoid * pointer))
+SDL_PROC(void, glTexCoordPointer,
+         (GLint size, GLenum type, GLsizei stride,
+          const GLvoid * pointer))
 SDL_PROC(void, glTexEnvf, (GLenum target, GLenum pname, GLfloat param))
 SDL_PROC_UNUSED(void, glTexEnvfv,
                 (GLenum target, GLenum pname, const GLfloat * params))
@@ -470,9 +470,9 @@ SDL_PROC_UNUSED(void, glVertex4iv, (const GLint * v))
 SDL_PROC_UNUSED(void, glVertex4s,
                 (GLshort x, GLshort y, GLshort z, GLshort w))
 SDL_PROC_UNUSED(void, glVertex4sv, (const GLshort * v))
-SDL_PROC_UNUSED(void, glVertexPointer,
-                (GLint size, GLenum type, GLsizei stride,
-                 const GLvoid * pointer))
+SDL_PROC(void, glVertexPointer,
+         (GLint size, GLenum type, GLsizei stride,
+          const GLvoid * pointer))
 SDL_PROC(void, glViewport, (GLint x, GLint y, GLsizei width, GLsizei height))
 
 /* vi: set ts=4 sw=4 expandtab: */

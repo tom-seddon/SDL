@@ -214,12 +214,13 @@ FlushRenderCommands(SDL_Renderer *renderer)
 
     if (renderer->render_commands == NULL) {  /* nothing to do! */
         SDL_assert(renderer->vertex_data_used == 0);
+        SDL_assert(renderer->index_data_used == 0);
         return 0;
     }
 
     DebugLogRenderCommands(renderer->render_commands);
 
-    retval = renderer->RunCommandQueue(renderer, renderer->render_commands, renderer->vertex_data, renderer->vertex_data_used);
+    retval = renderer->RunCommandQueue(renderer, renderer->render_commands, renderer->vertex_data, renderer->vertex_data_used, renderer->index_data, renderer->index_data_used);
 
     /* Move the whole render command queue to the unused pool so we can reuse them next time. */
     if (renderer->render_commands_tail != NULL) {
@@ -229,6 +230,7 @@ FlushRenderCommands(SDL_Renderer *renderer)
         renderer->render_commands = NULL;
     }
     renderer->vertex_data_used = 0;
+    renderer->index_data_used = 0;
     renderer->render_command_generation++;
     renderer->color_queued = SDL_FALSE;
     renderer->viewport_queued = SDL_FALSE;
@@ -291,6 +293,40 @@ SDL_AllocateRenderVertices(SDL_Renderer *renderer, const size_t numbytes, const 
     renderer->vertex_data_used += aligner + numbytes;
 
     return ((Uint8 *) renderer->vertex_data) + aligned;
+}
+
+Uint16 *
+SDL_AllocateRenderIndices(SDL_Renderer *renderer, const size_t indexcount, size_t *offset)
+{
+    const size_t needed = renderer->index_data_used + indexcount;
+    size_t current_offset = renderer->index_data_used;
+
+    if (renderer->index_data_allocation < needed) {
+        const size_t current_allocation = renderer->index_data ? renderer->index_data_allocation : 1024;
+        size_t newsize = current_allocation * 2;
+        void *ptr;
+
+        while (newsize < needed) {
+            newsize *= 2;
+        }
+
+        ptr = SDL_realloc(renderer->index_data, newsize * sizeof(uint16_t));
+        if (ptr == NULL) {
+            SDL_OutOfMemory();
+            return NULL;
+        }
+
+        renderer->index_data = ptr;
+        renderer->index_data_allocation = newsize;
+    }
+
+    if (offset) {
+        *offset = current_offset;
+    }
+
+    renderer->index_data_used += indexcount;
+
+    return renderer->index_data + current_offset;
 }
 
 static SDL_RenderCommand *
@@ -439,6 +475,7 @@ PrepQueueCmdDrawSolid(SDL_Renderer *renderer, const SDL_RenderCommandType cmdtyp
         if (cmd != NULL) {
             cmd->command = cmdtype;
             cmd->data.draw.first = 0;  /* render backend will fill this in. */
+            cmd->data.draw.first_index = 0; /* render backend will fill this in. */
             cmd->data.draw.count = 0;  /* render backend will fill this in. */
             cmd->data.draw.r = renderer->r;
             cmd->data.draw.g = renderer->g;
@@ -503,6 +540,7 @@ PrepQueueCmdDrawTexture(SDL_Renderer *renderer, SDL_Texture *texture, const SDL_
         if (cmd != NULL) {
             cmd->command = cmdtype;
             cmd->data.draw.first = 0;  /* render backend will fill this in. */
+            cmd->data.draw.first_index = 0; /* render backend will fill this in. */
             cmd->data.draw.count = 0;  /* render backend will fill this in. */
             cmd->data.draw.r = texture->r;
             cmd->data.draw.g = texture->g;
@@ -3329,8 +3367,22 @@ SDL_RenderGetMetalCommandEncoder(SDL_Renderer * renderer)
     return NULL;
 }
 
-int SDL_RenderGeometry(SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex *vertices, Uint16 num_vertices, const Uint16* indices, int num_indices, const SDL_Vector2f *translation)
+/* This is multiple entry points in one... textured/untextured, indexed/
+   unindexed! It's at least silly that this one call maps to both
+   SDL_RENDERCMD_RENDER_GEOMETRY_INDEXED and SDL_RENDERCMD_RENDER_GEOMETRY.
+
+   Should rationalize this once it's all working. */
+int
+SDL_RenderGeometry(SDL_Renderer * renderer, SDL_Texture *texture,
+                   const SDL_Vertex *vertices, Uint32 num_vertices,
+                   const Uint16 *indices, Uint32 num_indices,
+                   const SDL_Vector2f *translation)
 {
+    Uint32 num_elements;
+    SDL_RenderCommandType commandtype;
+    SDL_RenderCommand *cmd;
+    int retval;
+
     CHECK_RENDERER_MAGIC(renderer, -1);
 
     if (texture) {
@@ -3342,25 +3394,77 @@ int SDL_RenderGeometry(SDL_Renderer * renderer, SDL_Texture *texture, SDL_Vertex
         }
     }
 
-    if (!renderer->RenderGeometry) {
-        SDL_SetError("Renderer does not support RenderGeometry");
+    if (indices) {
+        if (!renderer->QueueRenderIndexedGeometry) {
+            SDL_SetError("Renderer does not support indexed RenderGeometry");
+            return -1;
+        }
+
+        commandtype = SDL_RENDERCMD_RENDER_GEOMETRY_INDEXED;
+        num_elements = num_indices;
+    } else {
+        if (!renderer->QueueRenderGeometry) {
+            SDL_SetError("Renderer does not support RenderGeometry");
+            return -1;
+        }
+
+        commandtype = SDL_RENDERCMD_RENDER_GEOMETRY;
+        num_elements = num_vertices;
+    }
+
+    if (num_elements % 3 != 0) {
+        SDL_SetError("RenderGeometry only supports triangles");
         return -1;
     }
 
-    if(!vertices) {
+    if (!vertices) {
         SDL_SetError("Vertices parameter can not be null");
         return -1;
+    }
+
+    /* Don't draw when hidden. */
+    if (renderer->hidden) {
+        return 0;
+    }
+
+    /* Don't draw when there's nothing to draw. */
+    if (num_elements == 0) {
+        return 0;
     }
 
     if (texture) {
         if (texture->native) {
             texture = texture->native;
         }
+
+        cmd = PrepQueueCmdDrawTexture(renderer, texture, commandtype);
+    } else {
+        cmd = PrepQueueCmdDrawSolid(renderer, commandtype);
     }
 
-    return renderer->RenderGeometry(renderer, texture, vertices, num_vertices, indices, num_indices, translation);
-}
+    if (!cmd) {
+        return -1;
+    }
 
+    if (indices) {
+        retval = renderer->QueueRenderIndexedGeometry(renderer, cmd,
+                                                      texture,
+                                                      vertices, num_vertices,
+                                                      indices, num_indices,
+                                                      translation);
+    } else {
+        retval = renderer->QueueRenderGeometry(renderer, cmd,
+                                               texture,
+                                               vertices, num_vertices,
+                                               translation);
+    }
+
+    if (retval < 0) {
+        return retval;
+    }
+
+    return 0;
+}
 
 static SDL_BlendMode
 SDL_GetShortBlendMode(SDL_BlendMode blendMode)

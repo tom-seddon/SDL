@@ -74,7 +74,9 @@ typedef enum
     SDL_RENDERCMD_DRAW_LINES,
     SDL_RENDERCMD_FILL_RECTS,
     SDL_RENDERCMD_COPY,
-    SDL_RENDERCMD_COPY_EX
+    SDL_RENDERCMD_COPY_EX,
+    SDL_RENDERCMD_RENDER_GEOMETRY,
+    SDL_RENDERCMD_RENDER_GEOMETRY_INDEXED,
 } SDL_RenderCommandType;
 
 typedef struct SDL_RenderCommand
@@ -90,8 +92,9 @@ typedef struct SDL_RenderCommand
             SDL_Rect rect;
         } cliprect;
         struct {
-            size_t first;
-            size_t count;
+            size_t first; /* offset of first vertex */
+            size_t first_index; /* offset of first index */
+            size_t count; /* number of indices or vertices, as appropriate */
             Uint8 r, g, b, a;
             SDL_BlendMode blend;
             SDL_Texture *texture;
@@ -127,7 +130,19 @@ struct SDL_Renderer
     int (*QueueCopyEx) (SDL_Renderer * renderer, SDL_RenderCommand *cmd, SDL_Texture * texture,
                         const SDL_Rect * srcquad, const SDL_FRect * dstrect,
                         const double angle, const SDL_FPoint *center, const SDL_RendererFlip flip);
-    int (*RunCommandQueue) (SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vertices, size_t vertsize);
+    int (*QueueRenderGeometry) (SDL_Renderer * renderer, SDL_RenderCommand *cmd,
+                                SDL_Texture * texture,
+                                const SDL_Vertex *vertices, Uint32 num_vertices,
+                                const SDL_Vector2f *translation);
+    int (*QueueRenderIndexedGeometry) (SDL_Renderer * renderer, SDL_RenderCommand *cmd,
+                                       SDL_Texture * texture,
+                                       const SDL_Vertex *vertices, Uint32 num_vertices,
+                                       const Uint16 *indices, Uint32 num_indices,
+                                       const SDL_Vector2f *translation);
+
+    int (*RunCommandQueue) (SDL_Renderer * renderer, SDL_RenderCommand *cmd,
+                            void *vertices, size_t vertsize,
+                            const Uint16 *indices, size_t indexcount);
     int (*UpdateTexture) (SDL_Renderer * renderer, SDL_Texture * texture,
                           const SDL_Rect * rect, const void *pixels,
                           int pitch);
@@ -154,11 +169,6 @@ struct SDL_Renderer
     void *(*GetMetalLayer) (SDL_Renderer * renderer);
     void *(*GetMetalCommandEncoder) (SDL_Renderer * renderer);
 
-    int (*RenderGeometry) (SDL_Renderer * renderer, SDL_Texture *texture,
-                           SDL_Vertex *vertices, Uint16 num_vertices,
-                           const Uint16* indices, int num_indices,
-                           const SDL_Vector2f *translation);
-    
     /* The current renderer info */
     SDL_RendererInfo info;
 
@@ -227,6 +237,11 @@ struct SDL_Renderer
     size_t vertex_data_used;
     size_t vertex_data_allocation;
 
+    /* index data is always accounted for in units of 16 bits. */
+    Uint16 *index_data;
+    size_t index_data_used;
+    size_t index_data_allocation;
+
     void *driverdata;
 };
 
@@ -258,10 +273,11 @@ extern SDL_BlendFactor SDL_GetBlendModeSrcAlphaFactor(SDL_BlendMode blendMode);
 extern SDL_BlendFactor SDL_GetBlendModeDstAlphaFactor(SDL_BlendMode blendMode);
 extern SDL_BlendOperation SDL_GetBlendModeAlphaOperation(SDL_BlendMode blendMode);
 
-/* drivers call this during their Queue*() methods to make space in a array that are used
-   for a vertex buffer during RunCommandQueue(). Pointers returned here are only valid until
+/* drivers call these during their Queue*() methods to make space in arrays that are used
+   for a vertex/index buffer data during RunCommandQueue(). Pointers returned here are only valid until
    the next call, because it might be in an array that gets realloc()'d. */
 extern void *SDL_AllocateRenderVertices(SDL_Renderer *renderer, const size_t numbytes, const size_t alignment, size_t *offset);
+extern Uint16 *SDL_AllocateRenderIndices(SDL_Renderer *renderer, const size_t indexcount, size_t *offset);
 
 #endif /* SDL_sysrender_h_ */
 

@@ -609,7 +609,7 @@ SetDrawState(SDL_Surface *surface, SW_DrawStateCache *drawstate)
 }
 
 static int
-SW_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vertices, size_t vertsize)
+SW_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vertices, size_t vertsize, const Uint16 *indices, size_t indexcount)
 {
     SDL_Surface *surface = SW_ActivateRenderer(renderer);
     SW_DrawStateCache drawstate;

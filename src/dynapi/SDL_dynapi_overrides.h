@@ -773,3 +773,4 @@
 #define SDL_JoystickHasLED SDL_JoystickHasLED_REAL
 #define SDL_JoystickSetLED SDL_JoystickSetLED_REAL
 #define SDL_RenderGeometry SDL_RenderGeometry_REAL
+#define SDL_RenderGeometry SDL_RenderGeometry_REAL

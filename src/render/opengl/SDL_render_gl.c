@@ -32,6 +32,23 @@
 #include <OpenGL/OpenGL.h>
 #endif
 
+/* If true, use glBegin...glEnd to handle RenderGeometry. You don't get
+   much insight into the inner workings of glDrawElements, but this lays it all
+   bare.
+ */
+#define DEBUG_IMMEDIATE_MODE_RENDER_GEOMETRY 0
+
+#if DEBUG_IMMEDIATE_MODE_RENDER_GEOMETRY
+
+/* Extra verbosity, when suitably defined. */
+#if 0
+#define IMRG_PRINTF printf
+#else
+#define IMRG_PRINTF (void)
+#endif
+
+#endif
+
 /* To prevent unnecessary window recreation, 
  * these should match the defaults selected in SDL_GL_ResetAttributes 
  */
@@ -1025,6 +1042,82 @@ GL_QueueCopyEx(SDL_Renderer * renderer, SDL_RenderCommand *cmd, SDL_Texture * te
     return 0;
 }
 
+static int
+QueueRenderGeometryVertices(SDL_Renderer *renderer, SDL_RenderCommand *cmd,
+                            const SDL_Vertex *vertices, Uint32 num_vertices,
+                            const SDL_Vector2f *translation)
+{
+    /* +1 to account for the translation info. */
+    SDL_Vertex *queued_vertices = SDL_AllocateRenderVertices(renderer,
+                                                             (num_vertices + 1) * sizeof(SDL_Vertex),
+                                                             0,
+                                                             &cmd->data.draw.first);
+
+    if (!queued_vertices) {
+        return -1;
+    }
+
+    if (translation) {
+        queued_vertices[0].position = *translation;
+    } else {
+        queued_vertices[0].position.x = 0.f;
+        queued_vertices[0].position.y = 0.f;
+    }
+
+    memcpy(queued_vertices + 1, vertices, num_vertices * sizeof(SDL_Vertex));
+
+    return 0;
+}
+
+static int
+GL_QueueRenderGeometry(SDL_Renderer * renderer, SDL_RenderCommand *cmd,
+                       SDL_Texture *texture,
+                       const SDL_Vertex *vertices, Uint32 num_vertices,
+                       const SDL_Vector2f *translation)
+{
+    int retval;
+
+    (void)texture; /* currently unused here - may change, I suppose. */
+
+    retval = QueueRenderGeometryVertices(renderer, cmd, vertices, num_vertices, translation);
+    if (retval < 0) {
+        return -1;
+    }
+
+    cmd->data.draw.count = num_vertices;
+
+    return 0;
+}
+
+static int
+GL_QueueRenderIndexedGeometry(SDL_Renderer * renderer, SDL_RenderCommand *cmd,
+                              SDL_Texture *texture,
+                              const SDL_Vertex *vertices, Uint32 num_vertices,
+                              const Uint16 *indices, Uint32 num_indices,
+                              const SDL_Vector2f *translation)
+{
+    Uint16 *queued_indices;
+    int retval;
+
+    (void)texture; /* currently unused here - may change, I suppose. */
+
+    retval = QueueRenderGeometryVertices(renderer, cmd, vertices, num_vertices, translation);
+    if (retval < 0) {
+        return -1;
+    }
+
+    queued_indices = SDL_AllocateRenderIndices(renderer, num_indices, &cmd->data.draw.first_index);
+    if (!queued_indices) {
+        return -1;
+    }
+
+    memcpy(queued_indices, indices, num_indices * sizeof(Uint16));
+
+    cmd->data.draw.count = num_indices;
+
+    return 0;
+}
+
 static void
 SetDrawState(GL_RenderData *data, const SDL_RenderCommand *cmd, const GL_Shader shader)
 {
@@ -1168,8 +1261,58 @@ SetCopyState(GL_RenderData *data, const SDL_RenderCommand *cmd)
     }
 }
 
+static void
+SetRenderGeometryState(GL_RenderData *data,
+                       const SDL_RenderCommand *cmd,
+                       const SDL_Vertex *verts)
+{
+    /* Unlike most commands, RENDER_GEOMETRY and RENDER_GEOMETRY_INDEXED don't
+       know ahead of time whether they're going to do a Copy or a Draw.
+       Maybe this means there should be more RenderGeometry entry points,
+       corresponding to textured/untextured? */
+    if (cmd->data.draw.texture) {
+        SetCopyState(data, cmd);
+    } else {
+        SetDrawState(data, cmd, SHADER_SOLID);
+    }
+
+#if !DEBUG_IMMEDIATE_MODE_RENDER_GEOMETRY
+
+    data->glEnableClientState(GL_VERTEX_ARRAY);
+    data->glVertexPointer(2, GL_FLOAT, sizeof(SDL_Vertex), &verts[1].position);
+
+    data->glEnableClientState(GL_COLOR_ARRAY);
+    data->glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(SDL_Vertex), &verts[1].color);
+
+    if (cmd->data.draw.texture) {
+        data->glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+        data->glTexCoordPointer(2, GL_FLOAT, sizeof(SDL_Vertex), &verts[1].tex_coord);
+    } else {
+        data->glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+    }
+
+#endif
+
+    data->glPushMatrix();
+    data->glTranslatef(verts[0].position.x, verts[0].position.y, 0.f);
+}
+
+static void
+UnsetRenderGeometryState(GL_RenderData *data)
+{
+#if !DEBUG_IMMEDIATE_MODE_RENDER_GEOMETRY
+
+    data->glDisableClientState(GL_VERTEX_ARRAY);
+    data->glDisableClientState(GL_COLOR_ARRAY);
+    data->glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+
+#endif
+
+    data->glPopMatrix();
+}
+
 static int
-GL_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vertices, size_t vertsize)
+GL_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vertices, size_t vertsize, const Uint16 *indices, size_t indexcount)
 {
     /* !!! FIXME: it'd be nice to use a vertex buffer instead of immediate mode... */
     GL_RenderData *data = (GL_RenderData *) renderer->driverdata;
@@ -1342,6 +1485,71 @@ GL_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vertic
                 data->glPopMatrix();
                 break;
             }
+
+        case SDL_RENDERCMD_RENDER_GEOMETRY: {
+            const SDL_Vertex *verts = (SDL_Vertex *) ((Uint8 *)vertices + cmd->data.draw.first);
+
+            SetRenderGeometryState(data, cmd, verts);
+
+#if DEBUG_IMMEDIATE_MODE_RENDER_GEOMETRY
+
+            IMRG_PRINTF("SDL_RENDERCMD_RENDER_GEOMETRY: count=%zu first=%zu texture=%p\n", cmd->data.draw.count, cmd->data.draw.first, cmd->data.draw.texture);
+
+            data->glBegin(GL_TRIANGLES);
+            for (i = 0; i < cmd->data.draw.count; ++i) {
+                const SDL_Vertex *vert = &verts[1 + i];
+
+                data->glColor4ub(vert->color.r, vert->color.g, vert->color.b, vert->color.a);
+                data->glTexCoord2f(vert->tex_coord.x, vert->tex_coord.y);
+                data->glVertex2f(vert->position.x, vert->position.y);
+
+                IMRG_PRINTF("i=%zu: pos=(%f,%f), colour=(%u,%u,%u,%u), tex=(%f,%f)\n", i,                        vert->position.x, vert->position.y, vert->color.r, vert->color.g, vert->color.b, vert->color.a, vert->tex_coord.x, vert->tex_coord.y);
+            }
+            data->glEnd();
+
+#else
+
+            data->glDrawArrays(GL_TRIANGLES, 0, cmd->data.draw.count);
+
+#endif
+
+            UnsetRenderGeometryState(data);
+
+            break;
+        }
+
+        case SDL_RENDERCMD_RENDER_GEOMETRY_INDEXED: {
+            const SDL_Vertex *verts = (SDL_Vertex *)((Uint8 *)vertices + cmd->data.draw.first);
+
+            SetRenderGeometryState(data, cmd, verts);
+
+#if DEBUG_IMMEDIATE_MODE_RENDER_GEOMETRY
+
+            IMRG_PRINTF("SDL_RENDERCMD_RENDER_GEOMETRY_INDEXED: count=%zu first=%zu first_index=%zu texture=%p\n", cmd->data.draw.count, cmd->data.draw.first, cmd->data.draw.first_index, cmd->data.draw.texture);
+
+            data->glBegin(GL_TRIANGLES);
+            for (i = 0; i < cmd->data.draw.count; ++i) {
+                Uint16 index = indices[cmd->data.draw.first_index + i];
+                const SDL_Vertex *vert = &verts[1 + index];
+
+                data->glColor4ub(vert->color.r, vert->color.g, vert->color.b, vert->color.a);
+                data->glTexCoord2f(vert->tex_coord.x, vert->tex_coord.y);
+                data->glVertex2f(vert->position.x, vert->position.y);
+
+                IMRG_PRINTF("i=%zu index=%u: pos=(%f,%f), colour=(%u,%u,%u,%u), tex=(%f,%f)\n", i, index, vert->position.x, vert->position.y, vert->color.r, vert->color.g, vert->color.b, vert->color.a, vert->tex_coord.x, vert->tex_coord.y);
+            }
+            data->glEnd();
+
+#else
+
+            data->glDrawElements(GL_TRIANGLES, cmd->data.draw.count, GL_UNSIGNED_SHORT, indices + cmd->data.draw.first_index);
+
+#endif
+
+            UnsetRenderGeometryState(data);
+
+            break;
+        }
 
             case SDL_RENDERCMD_NO_OP:
                 break;
@@ -1557,7 +1765,6 @@ GL_UnbindTexture (SDL_Renderer * renderer, SDL_Texture *texture)
     return 0;
 }
 
-
 SDL_Renderer *
 GL_CreateRenderer(SDL_Window * window, Uint32 flags)
 {
@@ -1615,6 +1822,8 @@ GL_CreateRenderer(SDL_Window * window, Uint32 flags)
     renderer->QueueFillRects = GL_QueueFillRects;
     renderer->QueueCopy = GL_QueueCopy;
     renderer->QueueCopyEx = GL_QueueCopyEx;
+    renderer->QueueRenderGeometry = GL_QueueRenderGeometry;
+    renderer->QueueRenderIndexedGeometry = GL_QueueRenderIndexedGeometry;
     renderer->RunCommandQueue = GL_RunCommandQueue;
     renderer->RenderReadPixels = GL_RenderReadPixels;
     renderer->RenderPresent = GL_RenderPresent;
@@ -1623,7 +1832,7 @@ GL_CreateRenderer(SDL_Window * window, Uint32 flags)
     renderer->GL_BindTexture = GL_BindTexture;
     renderer->GL_UnbindTexture = GL_UnbindTexture;
     renderer->info = GL_RenderDriver.info;
-    renderer->info.flags = SDL_RENDERER_ACCELERATED;
+    renderer->info.flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_RENDERGEOMETRY;
     renderer->driverdata = data;
     renderer->window = window;
 
@@ -1777,7 +1986,7 @@ SDL_RenderDriver GL_RenderDriver = {
     GL_CreateRenderer,
     {
      "opengl",
-     (SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE),
+     (SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE | SDL_RENDERER_RENDERGEOMETRY),
      4,
      {
          SDL_PIXELFORMAT_ARGB8888,

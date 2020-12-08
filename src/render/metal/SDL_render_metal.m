@@ -1366,7 +1366,7 @@ SetCopyState(SDL_Renderer *renderer, const SDL_RenderCommand *cmd, const size_t 
 }
 
 static int
-METAL_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vertices, size_t vertsize)
+METAL_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vertices, size_t vertsize, const Uint16 *indices, size_t indexcount)
 { @autoreleasepool {
     METAL_RenderData *data = (__bridge METAL_RenderData *) renderer->driverdata;
     METAL_DrawStateCache statecache;

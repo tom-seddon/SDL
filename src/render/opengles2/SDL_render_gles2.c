@@ -1250,7 +1250,7 @@ SetCopyState(SDL_Renderer *renderer, const SDL_RenderCommand *cmd)
 }
 
 static int
-GLES2_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vertices, size_t vertsize)
+GLES2_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vertices, size_t vertsize, const Uint16 *indices, size_t indexcount)
 {
     GLES2_RenderData *data = (GLES2_RenderData *) renderer->driverdata;
     const SDL_bool colorswap = (renderer->target && (renderer->target->format == SDL_PIXELFORMAT_ARGB8888 || renderer->target->format == SDL_PIXELFORMAT_RGB888));
